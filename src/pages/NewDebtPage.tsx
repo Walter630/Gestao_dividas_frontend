@@ -6,6 +6,7 @@ import { DebtForm } from '../components/dividas/DebtForm';
 import { Button } from '../components/ui/Button';
 import { createDivida } from '../db/hooks/useDividas';
 import type { DividaInput } from '../db/types';
+import { toast } from 'sonner';
 
 export const NewDebtPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -15,9 +16,11 @@ export const NewDebtPage: React.FC = () => {
     setLoading(true);
     try {
       const id = await createDivida(data);
+      toast.success('Dívida cadastrada com sucesso!');
       navigate(`/dividas/${id}`);
     } catch (e) {
       console.error(e);
+      toast.error('Erro ao cadastrar a dívida.');
     } finally {
       setLoading(false);
     }

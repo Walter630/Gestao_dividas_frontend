@@ -66,7 +66,7 @@ export const StatsBar: React.FC = () => {
       <StatCard
         title="Valor Recebido"
         value={formatCurrency(stats.valorPago)}
-        subtitle={`${stats.pagas} paga(s)`}
+        subtitle={`${stats.pagas} quitada(s) + amortizações`}
         color="success"
         icon={
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

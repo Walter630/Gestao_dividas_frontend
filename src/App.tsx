@@ -17,12 +17,20 @@ function App() {
     updateAllCurrentValues();
     checkAndSendReminders();
 
-    // Re-check reminders every 30 minutes
     const interval = setInterval(() => {
       checkAndSendReminders();
     }, 30 * 60 * 1000);
 
-    return () => clearInterval(interval);
+    // Auto update expired routines frequently (every 10 seconds)
+    const activeUpdateInterval = setInterval(() => {
+      autoMarkOverdue();
+      updateAllCurrentValues();
+    }, 10 * 1000);
+
+    return () => {
+      clearInterval(interval);
+      clearInterval(activeUpdateInterval);
+    };
   }, []);
 
   return (

@@ -10,6 +10,7 @@ import { Button } from '../components/ui/Button';
 import { useAllDividas, deleteDivida } from '../db/hooks/useDividas';
 import { useUIStore } from '../store/useUIStore';
 import type { Divida } from '../db/types';
+import { toast } from 'sonner';
 
 type ViewMode = 'grid' | 'table';
 
@@ -29,7 +30,7 @@ export const DebtListPage: React.FC = () => {
       result = result.filter(
         (d) =>
           d.devedorNome.toLowerCase().includes(q) ||
-          d.devedorEmail.toLowerCase().includes(q) ||
+          (d.devedorEmail && d.devedorEmail.toLowerCase().includes(q)) ||
           d.descricao.toLowerCase().includes(q)
       );
     }
@@ -60,7 +61,11 @@ export const DebtListPage: React.FC = () => {
     setDeleteLoading(true);
     try {
       await deleteDivida(deletingId);
+      toast.success('Dívida excluída com sucesso!');
       closeDeleteModal();
+    } catch (e) {
+      console.error(e);
+      toast.error('Erro ao excluir a dívida.');
     } finally {
       setDeleteLoading(false);
     }

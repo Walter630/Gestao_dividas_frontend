@@ -1,5 +1,6 @@
 import React from 'react';
 import { Sidebar } from './Sidebar';
+import { Toaster } from 'sonner';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -12,6 +13,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <main className="flex-1 overflow-y-auto">
         {children}
       </main>
+      <Toaster theme="dark" position="top-right" />
     </div>
   );
 };

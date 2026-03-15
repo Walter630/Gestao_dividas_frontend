@@ -7,6 +7,7 @@ import { Button } from '../components/ui/Button';
 import { useDividaById, updateDivida } from '../db/hooks/useDividas';
 import type { DividaInput } from '../db/types';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 export const EditDebtPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -19,9 +20,11 @@ export const EditDebtPage: React.FC = () => {
     setLoading(true);
     try {
       await updateDivida(id, data);
+      toast.success('Alterações salvas com sucesso!');
       navigate(`/dividas/${id}`);
     } catch (e) {
       console.error(e);
+      toast.error('Erro ao salvar as alterações.');
     } finally {
       setLoading(false);
     }

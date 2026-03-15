@@ -6,16 +6,20 @@ import { StatusBadge } from '../components/ui/StatusBadge';
 import { Button } from '../components/ui/Button';
 import { ConfirmModal } from '../components/ui/Modal';
 import { Card } from '../components/ui/Card';
-import { useDividaById, deleteDivida, updateDivida } from '../db/hooks/useDividas';
+import { PaymentModal } from '../components/dividas/PaymentModal';
+import { useDividaById, deleteDivida, updateDivida, addPagamento } from '../db/hooks/useDividas';
 import { formatCurrency, formatDate, formatDateTime } from '../services/taxCalculator';
 import { TAX_TYPE_LABELS, StatusDivida } from '../db/types';
 import { differenceInDays } from 'date-fns';
+import { toast } from 'sonner';
 
 export const DebtDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [paymentOpen, setPaymentOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
   const navigate = useNavigate();
   const divida = useDividaById(id);
 
@@ -24,7 +28,10 @@ export const DebtDetailPage: React.FC = () => {
     setDeleteLoading(true);
     try {
       await deleteDivida(id);
+      toast.success('Dívida excluída com sucesso');
       navigate('/dividas');
+    } catch (e) {
+      toast.error('Erro ao excluir a dívida');
     } finally {
       setDeleteLoading(false);
     }
@@ -35,8 +42,25 @@ export const DebtDetailPage: React.FC = () => {
     setStatusLoading(true);
     try {
       await updateDivida(id, { status: StatusDivida.PAGA });
+      toast.success('Dívida marcada como paga!');
+    } catch (e) {
+      toast.error('Erro ao atualizar a dívida');
     } finally {
       setStatusLoading(false);
+    }
+  };
+
+  const handlePayment = async (valor: number, data: string) => {
+    if (!id) return;
+    setPaymentLoading(true);
+    try {
+      await addPagamento(id, valor, data);
+      toast.success('Pagamento registrado com sucesso!');
+      setPaymentOpen(false);
+    } catch (e) {
+      toast.error('Erro ao registrar o pagamento');
+    } finally {
+      setPaymentLoading(false);
     }
   };
 
@@ -44,8 +68,15 @@ export const DebtDetailPage: React.FC = () => {
     return (
       <Layout>
         <Topbar title="Detalhes" />
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full" />
+        <div className="flex items-center justify-center p-8 h-64">
+           {/* Skeleton Loader for DebtDetail */}
+           <div className="w-full max-w-4xl space-y-6 animate-pulse">
+             <div className="h-40 bg-dark-500 rounded-2xl w-full"></div>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <div className="h-64 bg-dark-500 rounded-2xl w-full"></div>
+               <div className="h-64 bg-dark-500 rounded-2xl w-full"></div>
+             </div>
+           </div>
         </div>
       </Layout>
     );
@@ -204,6 +235,24 @@ export const DebtDetailPage: React.FC = () => {
           <p className="text-gray-300 text-sm leading-relaxed">{divida.descricao}</p>
         </Card>
 
+        {/* Payments History */}
+        {(divida.pagamentos && divida.pagamentos.length > 0) && (
+          <Card>
+            <h3 className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-4">Histórico de Pagamentos (Amortização)</h3>
+            <div className="space-y-3">
+              {[...divida.pagamentos].sort((a,b) => new Date(b.data).getTime() - new Date(a.data).getTime()).map(p => (
+                <div key={p.id} className="flex justify-between items-center p-3 bg-dark-500/50 rounded-lg border border-dark-300/30">
+                  <div className="flex flex-col">
+                     <span className="text-primary-400 font-medium text-sm">{formatCurrency(p.valor)}</span>
+                     <span className="text-gray-500 text-xs">{formatDateTime(p.data)}</span>
+                  </div>
+                  <span className="text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded text-xs">Aprovado</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
         {/* Quick Actions */}
         {divida.status !== StatusDivida.PAGA && divida.status !== StatusDivida.CANCELADA && (
           <Card>
@@ -218,7 +267,14 @@ export const DebtDetailPage: React.FC = () => {
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                Marcar como Paga
+                Marcar como Paga (Quitar)
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => setPaymentOpen(true)}
+              >
+                Adicionar Pagamento
               </Button>
               <Link to={`/dividas/${id}/editar`}>
                 <Button variant="secondary" size="md">
@@ -238,6 +294,13 @@ export const DebtDetailPage: React.FC = () => {
         message={`Tem certeza que deseja excluir a dívida de "${divida.devedorNome}"? Esta ação não pode ser desfeita.`}
         confirmLabel="Excluir"
         loading={deleteLoading}
+      />
+      
+      <PaymentModal
+        isOpen={paymentOpen}
+        onClose={() => setPaymentOpen(false)}
+        onSubmit={handlePayment}
+        loading={paymentLoading}
       />
     </Layout>
   );

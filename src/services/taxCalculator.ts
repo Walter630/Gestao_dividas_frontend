@@ -8,38 +8,73 @@ export function calculateCurrentValue(
   valor: number,
   taxType: TaxType,
   taxValue: number,
-  dataVencimento: string
+  dataVencimento: string,
+  pagamentos: { data: string; valor: number }[] = []
 ): number {
   const now = new Date();
-  const dueDate = new Date(dataVencimento);
   const taxRate = taxValue / 100;
+  
+  // Sort payments by date ascending
+  const sortedPayments = [...pagamentos]
+    .map(p => ({ ...p, date: new Date(p.data) }))
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
 
-  switch (taxType) {
-    case TaxType.SEM_JUROS:
-      return valor;
+  let currentPrincipal = valor;
+  let lastCalcDate = new Date(dataVencimento); // Intially start applying interests from the due date
 
-    case TaxType.JUROS_FIXO: {
-      // Fixed monthly interest applied once the debt is overdue
-      const months = Math.max(0, differenceInMonths(now, dueDate));
-      return valor + valor * taxRate * months;
+  const calculateInterestChunk = (principal: number, startDate: Date, endDate: Date) => {
+    if (principal <= 0) return 0; // No interest on negative or paid-off balances
+    if (startDate >= endDate) return 0;
+    
+    switch (taxType) {
+      case TaxType.SEM_JUROS:
+        return 0;
+      case TaxType.JUROS_FIXO: {
+        const days = differenceInDays(endDate, startDate);
+        const months = days / 30; // 30-day commercial month
+        return principal * taxRate * months;
+      }
+      case TaxType.SIMPLES: {
+        const days = differenceInDays(endDate, startDate);
+        const years = days / 365;
+        return principal * taxRate * years;
+      }
+      case TaxType.COMPOSTA: {
+        const months = differenceInMonths(endDate, startDate);
+        // Note: exact compound interest usually interpolates fractional months or just takes whole months.
+        // We'll use fractional months for a more exact continuous-like partial payment.
+        // Or we can use exact difference in months as a float (approx):
+        const days = differenceInDays(endDate, startDate);
+        const fractionalMonths = days / (365.25 / 12);
+        return principal * Math.pow(1 + taxRate, fractionalMonths) - principal;
+      }
+      default:
+        return 0;
+    }
+  };
+
+  for (const p of sortedPayments) {
+    // If the payment is before the due date, we don't apply interest yet.
+    if (p.date < lastCalcDate) {
+      currentPrincipal -= p.valor;
+      continue;
     }
 
-    case TaxType.SIMPLES: {
-      // Simple interest: principal * rate * time (in days / 365)
-      const days = Math.max(0, differenceInDays(now, dueDate));
-      const years = days / 365;
-      return valor + valor * taxRate * years;
-    }
-
-    case TaxType.COMPOSTA: {
-      // Compound interest: principal * (1 + rate)^time (in months)
-      const months = Math.max(0, differenceInMonths(now, dueDate));
-      return valor * Math.pow(1 + taxRate, months);
-    }
-
-    default:
-      return valor;
+    // Calculate interest accumulated from last calc date up to this payment date
+    const interest = calculateInterestChunk(currentPrincipal, lastCalcDate, p.date);
+    
+    // The payment pays off accumulated interest + principal
+    currentPrincipal = currentPrincipal + interest - p.valor;
+    lastCalcDate = p.date; // advance the timeline
   }
+
+  // Calculate remaining interest from the last payment up to "now"
+  if (lastCalcDate < now) {
+    const finalInterest = calculateInterestChunk(currentPrincipal, lastCalcDate, now);
+    currentPrincipal += finalInterest;
+  }
+
+  return currentPrincipal;
 }
 
 /**

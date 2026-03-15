@@ -19,7 +19,8 @@ export async function createDivida(input: DividaInput): Promise<string> {
     input.valor,
     input.taxType,
     input.taxValue,
-    input.dataVencimento
+    input.dataVencimento,
+    []
   );
 
   const divida: Divida = {
@@ -27,6 +28,7 @@ export async function createDivida(input: DividaInput): Promise<string> {
     ...input,
     valorAtual,
     lembreteEnviado: null,
+    pagamentos: [],
     createAt: now,
     updateAt: now,
   };
@@ -40,11 +42,13 @@ export async function updateDivida(id: string, updates: Partial<DividaInput>): P
   if (!existing) return;
 
   const merged = { ...existing, ...updates };
+  const pagamentos = merged.pagamentos || [];
   const valorAtual = calculateCurrentValue(
     merged.valor,
     merged.taxType,
     merged.taxValue,
-    merged.dataVencimento
+    merged.dataVencimento,
+    pagamentos
   );
 
   await db.dividas.update(id, {
@@ -58,6 +62,28 @@ export async function deleteDivida(id: string): Promise<void> {
   await db.dividas.delete(id);
 }
 
+export async function addPagamento(dividaId: string, valor: number, data: string): Promise<void> {
+  const divida = await db.dividas.get(dividaId);
+  if (!divida) throw new Error('Dívida não encontrada');
+
+  const novoPagamento = { id: uuidv4(), valor, data };
+  const pagamentos = [...(divida.pagamentos || []), novoPagamento];
+  
+  const novoValorAtual = calculateCurrentValue(
+    divida.valor,
+    divida.taxType,
+    divida.taxValue,
+    divida.dataVencimento,
+    pagamentos
+  );
+
+  await db.dividas.update(dividaId, {
+    pagamentos,
+    valorAtual: novoValorAtual,
+    updateAt: new Date().toISOString()
+  });
+}
+
 export async function markReminderSent(id: string): Promise<void> {
   await db.dividas.update(id, {
     lembreteEnviado: new Date().toISOString(),
@@ -69,7 +95,7 @@ export async function updateAllCurrentValues(): Promise<void> {
   const all = await db.dividas.toArray();
   for (const d of all) {
     if (d.status === StatusDivida.PENDENTE || d.status === StatusDivida.VENCIDA) {
-      const newVal = calculateCurrentValue(d.valor, d.taxType, d.taxValue, d.dataVencimento);
+      const newVal = calculateCurrentValue(d.valor, d.taxType, d.taxValue, d.dataVencimento, d.pagamentos || []);
       if (newVal !== d.valorAtual) {
         await db.dividas.update(d.id!, { valorAtual: newVal, updateAt: new Date().toISOString() });
       }
@@ -109,6 +135,11 @@ export async function getDividaStats() {
   for (const d of all) {
     stats.totalValor += d.valor;
     stats.totalValorAtual += d.valorAtual;
+    
+    // Sum partial payments
+    const totalAmortizado = d.pagamentos?.reduce((acc, p) => acc + p.valor, 0) || 0;
+    stats.valorPago += totalAmortizado;
+
     switch (d.status) {
       case StatusDivida.PENDENTE:
         stats.pendentes++;
@@ -116,7 +147,10 @@ export async function getDividaStats() {
         break;
       case StatusDivida.PAGA:
         stats.pagas++;
-        stats.valorPago += d.valor;
+        // If it was marked as paid without using the partial payment system:
+        if (totalAmortizado === 0) {
+          stats.valorPago += d.valor;
+        }
         break;
       case StatusDivida.VENCIDA:
         stats.vencidas++;

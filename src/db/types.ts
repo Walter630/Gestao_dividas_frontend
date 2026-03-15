@@ -16,7 +16,7 @@ export enum TaxType {
 export interface Divida {
   id?: string;
   devedorNome: string;
-  devedorEmail: string;
+  devedorEmail?: string;
   valor: number;
   descricao: string;
   dataVencimento: string;
@@ -25,11 +25,18 @@ export interface Divida {
   taxValue: number;
   valorAtual: number;
   lembreteEnviado: string | null;
+  pagamentos?: Pagamento[]; // Optional to support older records
   createAt: string;
   updateAt: string;
 }
 
-export type DividaInput = Omit<Divida, 'id' | 'createAt' | 'updateAt' | 'valorAtual' | 'lembreteEnviado'>;
+export type DividaInput = Omit<Divida, 'id' | 'createAt' | 'updateAt' | 'valorAtual' | 'lembreteEnviado' | 'pagamentos'>;
+
+export interface Pagamento {
+  id: string;
+  data: string;
+  valor: number;
+}
 
 export const STATUS_LABELS: Record<StatusDivida, string> = {
   [StatusDivida.PENDENTE]: 'Pendente',

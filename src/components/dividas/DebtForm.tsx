@@ -102,10 +102,8 @@ export const DebtForm: React.FC<DebtFormProps> = ({
           type="email"
           placeholder="joao@email.com"
           error={errors.devedorEmail?.message}
-          required
           {...register('devedorEmail', {
-            required: 'E-mail é obrigatório',
-            pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'E-mail inválido' },
+            pattern: { value: /^(?:[^\s@]+@[^\s@]+\.[^\s@]+)?$/, message: 'E-mail inválido' },
           })}
         />
       </div>
