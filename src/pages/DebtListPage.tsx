@@ -9,6 +9,7 @@ import { ConfirmModal } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
 import { useAllDividas, deleteDivida } from '../db/hooks/useDividas';
 import { useUIStore } from '../store/useUIStore';
+import { exportDividasCSV } from '../services/exportService';
 import type { Divida } from '../db/types';
 import { toast } from 'sonner';
 
@@ -79,14 +80,22 @@ export const DebtListPage: React.FC = () => {
         title="Dívidas"
         subtitle={`${filtered.length} registro(s) encontrado(s)`}
         actions={
-          <Link to="/dividas/nova">
-            <Button variant="primary" size="md">
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" size="md" onClick={exportDividasCSV}>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
               </svg>
-              Nova Dívida
+              Exportar CSV
             </Button>
-          </Link>
+            <Link to="/dividas/nova">
+              <Button variant="primary" size="md">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Nova Dívida
+              </Button>
+            </Link>
+          </div>
         }
       />
 

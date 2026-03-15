@@ -5,10 +5,10 @@ import { Button } from '../ui/Button';
 import { StatusDivida, TaxType, STATUS_LABELS, TAX_TYPE_LABELS } from '../../db/types';
 import { calculateCurrentValue, formatCurrency } from '../../services/taxCalculator';
 import type { DividaInput } from '../../db/types';
+import { useAllClientes } from '../../db/hooks/useClientes';
 
 interface DebtFormFields {
-  devedorNome: string;
-  devedorEmail: string;
+  clienteId: string;
   valor: string;
   descricao: string;
   dataVencimento: string;
@@ -19,8 +19,7 @@ interface DebtFormFields {
 
 interface DebtFormProps {
   defaultValues?: {
-    devedorNome?: string;
-    devedorEmail?: string;
+    clienteId?: string;
     valor?: number;
     descricao?: string;
     dataVencimento?: string;
@@ -42,6 +41,9 @@ export const DebtForm: React.FC<DebtFormProps> = ({
   submitLabel = 'Salvar',
   loading,
 }) => {
+  const clientes = useAllClientes();
+  const clientOptions = clientes?.map((c) => ({ value: c.id!, label: c.nome })) || [];
+
   const {
     register,
     handleSubmit,
@@ -53,8 +55,7 @@ export const DebtForm: React.FC<DebtFormProps> = ({
       taxType: defaultValues?.taxType ?? TaxType.SEM_JUROS,
       taxValue: String(defaultValues?.taxValue ?? 0),
       valor: defaultValues?.valor !== undefined ? String(defaultValues.valor) : '',
-      devedorNome: defaultValues?.devedorNome ?? '',
-      devedorEmail: defaultValues?.devedorEmail ?? '',
+      clienteId: defaultValues?.clienteId ?? '',
       descricao: defaultValues?.descricao ?? '',
       dataVencimento: defaultValues?.dataVencimento ?? '',
     },
@@ -74,9 +75,12 @@ export const DebtForm: React.FC<DebtFormProps> = ({
       : null;
 
   const onFormSubmit = (data: DebtFormFields) => {
+    const selectedClient = clientes?.find((c) => c.id === data.clienteId);
+
     onSubmit({
-      devedorNome: data.devedorNome,
-      devedorEmail: data.devedorEmail,
+      clienteId: data.clienteId,
+      devedorNome: selectedClient?.nome || 'Desconhecido',
+      devedorEmail: selectedClient?.email || '',
       valor: parseFloat(data.valor) || 0,
       descricao: data.descricao,
       dataVencimento: new Date(data.dataVencimento).toISOString(),
@@ -90,22 +94,17 @@ export const DebtForm: React.FC<DebtFormProps> = ({
     <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-5">
       {/* Debtor Info */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Input
-          label="Nome do Devedor"
-          placeholder="João da Silva"
-          error={errors.devedorNome?.message}
+        <Select
+          label="Cliente"
+          options={clientOptions}
+          error={errors.clienteId?.message}
           required
-          {...register('devedorNome', { required: 'Nome é obrigatório', minLength: { value: 2, message: 'Mínimo 2 caracteres' } })}
+          {...register('clienteId', { required: 'Selecione um cliente' })}
         />
-        <Input
-          label="E-mail do Devedor"
-          type="email"
-          placeholder="joao@email.com"
-          error={errors.devedorEmail?.message}
-          {...register('devedorEmail', {
-            pattern: { value: /^(?:[^\s@]+@[^\s@]+\.[^\s@]+)?$/, message: 'E-mail inválido' },
-          })}
-        />
+        {/* Helper layout to align or maybe put something else later */}
+        <div className="flex items-end pb-1 text-sm text-gray-500">
+          Se o cliente não estiver na lista, vá até "Meus Clientes" e crie-o.
+        </div>
       </div>
 
       {/* Value and Due Date */}

@@ -13,8 +13,26 @@ export enum TaxType {
   SEM_JUROS = 'SEM_JUROS',
 }
 
+export interface Cliente {
+  id?: string;
+  nome: string;
+  email?: string;
+  telefone?: string;
+  documento?: string;
+  createAt: string;
+}
+
+export interface Configuracoes {
+  id?: number;
+  nomeEmpresa: string;
+  taxaPadrao: number;
+  tipoJurosPadrao: TaxType;
+  whatsappTemplate: string;
+}
+
 export interface Divida {
   id?: string;
+  clienteId?: string;
   devedorNome: string;
   devedorEmail?: string;
   valor: number;

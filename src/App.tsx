@@ -5,9 +5,14 @@ import { DebtListPage } from './pages/DebtListPage';
 import { NewDebtPage } from './pages/NewDebtPage';
 import { EditDebtPage } from './pages/EditDebtPage';
 import { DebtDetailPage } from './pages/DebtDetailPage';
+import { ClientListPage } from './pages/ClientListPage';
+import { NewClientPage } from './pages/NewClientPage';
+import { ClientDetailPage } from './pages/ClientDetailPage';
+import { SettingsPage } from './pages/SettingsPage';
 import { InstallBanner } from './components/ui/InstallBanner';
 import { checkAndSendReminders } from './services/reminderService';
 import { autoMarkOverdue, updateAllCurrentValues } from './db/hooks/useDividas';
+import { initConfiguracoes } from './db/hooks/useConfiguracoes';
 import './App.css';
 
 function App() {
@@ -16,6 +21,7 @@ function App() {
     autoMarkOverdue();
     updateAllCurrentValues();
     checkAndSendReminders();
+    initConfiguracoes();
 
     const interval = setInterval(() => {
       checkAndSendReminders();
@@ -41,6 +47,10 @@ function App() {
         <Route path="/dividas/nova" element={<NewDebtPage />} />
         <Route path="/dividas/:id" element={<DebtDetailPage />} />
         <Route path="/dividas/:id/editar" element={<EditDebtPage />} />
+        <Route path="/clientes" element={<ClientListPage />} />
+        <Route path="/clientes/novo" element={<NewClientPage />} />
+        <Route path="/clientes/:id" element={<ClientDetailPage />} />
+        <Route path="/configuracoes" element={<SettingsPage />} />
       </Routes>
       <InstallBanner />
     </BrowserRouter>

@@ -8,6 +8,8 @@ import { ConfirmModal } from '../components/ui/Modal';
 import { Card } from '../components/ui/Card';
 import { PaymentModal } from '../components/dividas/PaymentModal';
 import { useDividaById, deleteDivida, updateDivida, addPagamento } from '../db/hooks/useDividas';
+import { useConfiguracoes } from '../db/hooks/useConfiguracoes';
+import { useClienteById } from '../db/hooks/useClientes';
 import { formatCurrency, formatDate, formatDateTime } from '../services/taxCalculator';
 import { TAX_TYPE_LABELS, StatusDivida } from '../db/types';
 import { differenceInDays } from 'date-fns';
@@ -22,6 +24,8 @@ export const DebtDetailPage: React.FC = () => {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const navigate = useNavigate();
   const divida = useDividaById(id);
+  const config = useConfiguracoes();
+  const cliente = useClienteById(divida?.clienteId);
 
   const handleDelete = async () => {
     if (!id) return;
@@ -98,6 +102,23 @@ export const DebtDetailPage: React.FC = () => {
   const isOverdue = daysUntilDue < 0;
   const isDueSoon = daysUntilDue >= 0 && daysUntilDue <= 3;
   const interest = divida.valorAtual - divida.valor;
+
+  const handleWhatsApp = () => {
+    if (!cliente?.telefone || !config?.whatsappTemplate) {
+      toast.error('Telefone do cliente ou template não configurados.');
+      return;
+    }
+    
+    let msg = config.whatsappTemplate;
+    msg = msg.replace(/{nome}/g, divida.devedorNome);
+    msg = msg.replace(/{valorAtual}/g, formatCurrency(divida.valorAtual));
+    msg = msg.replace(/{dataVencimento}/g, formatDate(divida.dataVencimento));
+    
+    // Clean phone number (leave only digits)
+    const phone = cliente.telefone.replace(/\D/g, '');
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
+  };
 
   return (
     <Layout>
@@ -275,6 +296,17 @@ export const DebtDetailPage: React.FC = () => {
                 onClick={() => setPaymentOpen(true)}
               >
                 Adicionar Pagamento
+              </Button>
+              <Button
+                variant="success"
+                size="md"
+                onClick={handleWhatsApp}
+                disabled={!cliente?.telefone}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                Cobrar WhatsApp
               </Button>
               <Link to={`/dividas/${id}/editar`}>
                 <Button variant="secondary" size="md">

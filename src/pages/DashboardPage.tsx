@@ -6,8 +6,10 @@ import { StatsBar } from '../components/dashboard/StatsBar';
 import { DebtsByStatusChart } from '../components/dashboard/DebtsByStatusChart';
 import { MonthlyTrendChart } from '../components/dashboard/MonthlyTrendChart';
 import { UpcomingDueSoon } from '../components/dashboard/UpcomingDueSoon';
+import { CashflowChart } from '../components/dashboard/CashflowChart';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { exportDividasCSV } from '../services/exportService';
 
 export const DashboardPage: React.FC = () => {
   return (
@@ -16,14 +18,22 @@ export const DashboardPage: React.FC = () => {
         title="Dashboard"
         subtitle="Visão geral das suas dívidas"
         actions={
-          <Link to="/dividas/nova">
-            <Button variant="primary" size="md">
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" size="md" onClick={exportDividasCSV}>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
               </svg>
-              Nova Dívida
+              Exportar
             </Button>
-          </Link>
+            <Link to="/dividas/nova">
+              <Button variant="primary" size="md">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Nova Dívida
+              </Button>
+            </Link>
+          </div>
         }
       />
 
@@ -57,6 +67,15 @@ export const DashboardPage: React.FC = () => {
               </span>
             </div>
             <MonthlyTrendChart />
+          </Card>
+
+          <Card className="lg:col-span-2">
+            <h2 className="text-white font-semibold text-sm mb-2 flex items-center gap-2">
+              <span className="w-1.5 h-4 bg-blue-500 rounded-full" />
+              Projeção de Fluxo de Caixa Futuro
+            </h2>
+            <p className="text-xs text-gray-400 mb-4">Expectativa de recebimentos baseada em dívidas ativas (pendentes e vencidas) agendadas para os próximos 4 meses.</p>
+            <CashflowChart />
           </Card>
         </div>
 
