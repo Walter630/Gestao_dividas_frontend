@@ -3,7 +3,8 @@ import { formatCurrency, formatDate } from './taxCalculator';
 import { STATUS_LABELS } from '../db/types';
 
 function downloadFile(filename: string, content: string) {
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  // Add UTF-8 BOM so Excel recognizes special characters (like R$)
+  const blob = new Blob(["\ufeff" + content], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   
   const link = document.createElement("a");
@@ -23,12 +24,12 @@ export async function exportDividasCSV() {
   const clientMap = new Map();
   clientes.forEach(c => clientMap.set(c.id, c));
 
-  let csvContent = "ID,Cliente,Email,Telefone,Descricao,Status,Valor Original,Valor Atual,Juros Acumulados,Total Pago,Vencimento\n";
+  let csvContent = "Cliente;Email;Telefone;Descricao;Status;Valor Original;Valor Atual;Juros Acumulados;Total Pago;Vencimento\n";
 
   for (const d of dividas) {
     const cliente = clientMap.get(d.clienteId);
-    const nome = cliente?.nome || d.devedorNome;
-    const email = cliente?.email || d.devedorEmail || '';
+    const nome = d.devedorNome || cliente?.nome || 'Desconhecido';
+    const email = d.devedorEmail || cliente?.email || '';
     const tel = cliente?.telefone || '';
     
     // safe quotes for CSV processing
@@ -40,18 +41,17 @@ export async function exportDividasCSV() {
     const juros = d.valorAtual - d.valor;
 
     const row = [
-      d.id,
       cleanNome,
       email,
       tel,
       cleanDesc,
       status,
-      d.valor,
-      d.valorAtual,
-      juros,
-      totalPago,
+      d.valor.toFixed(2),
+      d.valorAtual.toFixed(2),
+      juros.toFixed(2),
+      totalPago.toFixed(2),
       formatDate(d.dataVencimento)
-    ].join(',');
+    ].join(';');
     
     csvContent += row + "\n";
   }

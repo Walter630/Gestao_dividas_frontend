@@ -9,6 +9,9 @@ import { useAllClientes } from '../../db/hooks/useClientes';
 
 interface DebtFormFields {
   clienteId: string;
+  clienteNome?: string;
+  clienteEmail?: string;
+  clienteTelefone?: string;
   valor: string;
   descricao: string;
   dataVencimento: string;
@@ -20,6 +23,8 @@ interface DebtFormFields {
 interface DebtFormProps {
   defaultValues?: {
     clienteId?: string;
+    devedorNome?: string;
+    devedorEmail?: string;
     valor?: number;
     descricao?: string;
     dataVencimento?: string;
@@ -27,7 +32,7 @@ interface DebtFormProps {
     taxType?: TaxType;
     taxValue?: number;
   };
-  onSubmit: (data: DividaInput) => Promise<void>;
+  onSubmit: (data: DividaInput, newClient?: { nome: string, email?: string, telefone?: string }) => Promise<void>;
   submitLabel?: string;
   loading?: boolean;
 }
@@ -41,6 +46,7 @@ export const DebtForm: React.FC<DebtFormProps> = ({
   submitLabel = 'Salvar',
   loading,
 }) => {
+  const [isQuickAdd, setIsQuickAdd] = React.useState(false);
   const clientes = useAllClientes();
   const clientOptions = clientes?.map((c) => ({ value: c.id!, label: c.nome })) || [];
 
@@ -56,6 +62,9 @@ export const DebtForm: React.FC<DebtFormProps> = ({
       taxValue: String(defaultValues?.taxValue ?? 0),
       valor: defaultValues?.valor !== undefined ? String(defaultValues.valor) : '',
       clienteId: defaultValues?.clienteId ?? '',
+      clienteNome: '',
+      clienteEmail: '',
+      clienteTelefone: '',
       descricao: defaultValues?.descricao ?? '',
       dataVencimento: defaultValues?.dataVencimento ?? '',
     },
@@ -75,36 +84,78 @@ export const DebtForm: React.FC<DebtFormProps> = ({
       : null;
 
   const onFormSubmit = (data: DebtFormFields) => {
-    const selectedClient = clientes?.find((c) => c.id === data.clienteId);
+    let selectedClient = clientes?.find((c) => c.id === data.clienteId);
+    let newClientData = undefined;
+
+    if (isQuickAdd) {
+      newClientData = {
+        nome: data.clienteNome || '',
+        email: data.clienteEmail,
+        telefone: data.clienteTelefone,
+      };
+    }
 
     onSubmit({
       clienteId: data.clienteId,
-      devedorNome: selectedClient?.nome || 'Desconhecido',
-      devedorEmail: selectedClient?.email || '',
+      devedorNome: isQuickAdd ? (data.clienteNome || '') : (selectedClient?.nome || 'Desconhecido'),
+      devedorEmail: isQuickAdd ? (data.clienteEmail || '') : (selectedClient?.email || ''),
       valor: parseFloat(data.valor) || 0,
       descricao: data.descricao,
       dataVencimento: new Date(data.dataVencimento).toISOString(),
       status: data.status as StatusDivida,
       taxType: data.taxType as TaxType,
       taxValue: parseFloat(data.taxValue) || 0,
-    });
+    }, newClientData);
   };
 
   return (
     <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-5">
       {/* Debtor Info */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Select
-          label="Cliente"
-          options={clientOptions}
-          error={errors.clienteId?.message}
-          required
-          {...register('clienteId', { required: 'Selecione um cliente' })}
-        />
-        {/* Helper layout to align or maybe put something else later */}
-        <div className="flex items-end pb-1 text-sm text-gray-500">
-          Se o cliente não estiver na lista, vá até "Meus Clientes" e crie-o.
+      <div className="bg-dark-500/30 border border-dark-400 rounded-2xl p-4 mb-2">
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="text-white font-medium text-sm">Informações do Cliente</h4>
+          <button
+            type="button"
+            onClick={() => setIsQuickAdd(!isQuickAdd)}
+            className="text-xs text-primary-400 hover:text-primary-300 font-medium transition-colors"
+          >
+            {isQuickAdd ? '← Selecionar cliente existente' : '+ Novo cliente rápido'}
+          </button>
         </div>
+
+        {isQuickAdd ? (
+          <div className="space-y-4 animate-fade-in">
+            <Input
+              label="Nome do Cliente *"
+              placeholder="Ex: João da Silva"
+              error={errors.clienteNome?.message}
+              {...register('clienteNome', { required: isQuickAdd ? 'Nome é obrigatório' : false })}
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="E-mail"
+                type="email"
+                placeholder="joao@example.com"
+                {...register('clienteEmail')}
+              />
+              <Input
+                label="WhatsApp"
+                placeholder="5511999999999"
+                {...register('clienteTelefone')}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="animate-fade-in">
+            <Select
+              label="Selecione o Cliente"
+              options={clientOptions}
+              error={errors.clienteId?.message}
+              required
+              {...register('clienteId', { required: isQuickAdd ? false : 'Selecione um cliente' })}
+            />
+          </div>
+        )}
       </div>
 
       {/* Value and Due Date */}

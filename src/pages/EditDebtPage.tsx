@@ -5,6 +5,7 @@ import { Topbar } from '../components/layout/Topbar';
 import { DebtForm } from '../components/dividas/DebtForm';
 import { Button } from '../components/ui/Button';
 import { useDividaById, updateDivida } from '../db/hooks/useDividas';
+import { createCliente } from '../db/hooks/useClientes';
 import type { DividaInput } from '../db/types';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -15,16 +16,25 @@ export const EditDebtPage: React.FC = () => {
   const navigate = useNavigate();
   const divida = useDividaById(id);
 
-  const handleSubmit = async (data: DividaInput) => {
+  const handleSubmit = async (data: DividaInput, newClient?: { nome: string, email?: string, telefone?: string }) => {
     if (!id) return;
     setLoading(true);
     try {
-      await updateDivida(id, data);
-      toast.success('Alterações salvas com sucesso!');
+      let finalData = { ...data };
+      if (newClient) {
+        const clienteId = await createCliente({
+          nome: newClient.nome,
+          email: newClient.email,
+          telefone: newClient.telefone,
+        });
+        finalData.clienteId = clienteId;
+      }
+      await updateDivida(id, finalData);
+      toast.success('Dívida atualizada com sucesso!');
       navigate(`/dividas/${id}`);
     } catch (e) {
       console.error(e);
-      toast.error('Erro ao salvar as alterações.');
+      toast.error('Erro ao atualizar a dívida.');
     } finally {
       setLoading(false);
     }

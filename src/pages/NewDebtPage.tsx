@@ -6,6 +6,7 @@ import { DebtForm } from '../components/dividas/DebtForm';
 import { Button } from '../components/ui/Button';
 import { createDivida } from '../db/hooks/useDividas';
 import { useConfiguracoes } from '../db/hooks/useConfiguracoes';
+import { createCliente } from '../db/hooks/useClientes';
 import type { DividaInput } from '../db/types';
 import { TaxType, StatusDivida } from '../db/types';
 import { toast } from 'sonner';
@@ -15,10 +16,20 @@ export const NewDebtPage: React.FC = () => {
   const navigate = useNavigate();
   const config = useConfiguracoes();
 
-  const handleSubmit = async (data: DividaInput) => {
+  const handleSubmit = async (data: DividaInput, newClient?: { nome: string, email?: string, telefone?: string }) => {
     setLoading(true);
     try {
-      const id = await createDivida(data);
+      let finalData = { ...data };
+      if (newClient) {
+        const clienteId = await createCliente({
+          nome: newClient.nome,
+          email: newClient.email,
+          telefone: newClient.telefone,
+        });
+        finalData.clienteId = clienteId;
+      }
+      
+      const id = await createDivida(finalData);
       toast.success('Dívida cadastrada com sucesso!');
       navigate(`/dividas/${id}`);
     } catch (e) {
