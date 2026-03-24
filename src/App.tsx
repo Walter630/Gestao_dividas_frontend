@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
 import { DashboardPage } from './pages/DashboardPage';
 import { DebtListPage } from './pages/DebtListPage';
 import { NewDebtPage } from './pages/NewDebtPage';
@@ -53,6 +54,7 @@ function App() {
         <Route path="/configuracoes" element={<SettingsPage />} />
       </Routes>
       <InstallBanner />
+      <Analytics />
     </BrowserRouter>
   );
 }
