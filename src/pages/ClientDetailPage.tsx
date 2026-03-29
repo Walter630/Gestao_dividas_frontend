@@ -3,12 +3,10 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { Topbar } from '../components/layout/Topbar';
 import { useClienteById } from '../db/hooks/useClientes';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../db';
 import type { Divida } from '../db/types';
 import { Button } from '../components/ui/Button';
 import { DebtCard } from '../components/dividas/DebtCard';
-import { deleteDivida } from '../db/hooks/useDividas';
+import { deleteDivida, useAllDividas } from '../db/hooks/useDividas';
 import { toast } from 'sonner';
 
 export const ClientDetailPage: React.FC = () => {
@@ -16,16 +14,17 @@ export const ClientDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const cliente = useClienteById(id);
   
-  const dividas = useLiveQuery(
-    () => id ? db.dividas.where({ clienteId: id }).toArray() : [],
-    [id]
-  );
+  const allDividas = useAllDividas();
+  const dividas = React.useMemo(() => {
+    if (!allDividas || !id) return undefined;
+    return allDividas.filter(d => d.clienteId === id);
+  }, [allDividas, id]);
 
   const handleDeleteDebt = async (debtId: string) => {
     if (!confirm('Deseja excluir esta dívida?')) return;
     try {
       await deleteDivida(debtId);
-      toast.success('Dívida excluída.');
+      toast.success('Dívida excluída. (Simulação sem rota)');
     } catch {
       toast.error('Erro ao excluir dívida.');
     }
@@ -68,7 +67,6 @@ export const ClientDetailPage: React.FC = () => {
       />
 
       <div className="p-4 lg:p-6 space-y-6 animate-fade-in max-w-5xl mx-auto">
-        {/* Profile Header */}
         <div className="bg-dark-600 border border-dark-300/50 rounded-2xl p-6 flex flex-col md:flex-row shadow-card justify-between items-start md:items-center gap-4">
           <div>
             <h2 className="text-2xl font-bold text-white mb-2">{cliente.nome}</h2>
@@ -88,7 +86,6 @@ export const ClientDetailPage: React.FC = () => {
           </Link>
         </div>
 
-        {/* Debts List */}
         <div>
           <h3 className="text-lg font-bold text-white mb-4">Histórico de Dívidas ({dividas?.length || 0})</h3>
           {!dividas ? (

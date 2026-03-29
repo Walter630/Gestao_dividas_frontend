@@ -1,12 +1,19 @@
-import React from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
+import React, { useEffect, useState } from 'react';
 import { StatCard } from '../ui/Card';
 import { formatCurrency } from '../../services/taxCalculator';
 import { getDividaStats } from '../../db/hooks/useDividas';
 
 export const StatsBar: React.FC = () => {
-  const stats = useLiveQuery(async () => {
-    return getDividaStats();
+  const [stats, setStats] = useState<any>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    getDividaStats().then(data => {
+      if (mounted) setStats(data);
+    }).catch(e => {
+      console.error('Failed to get stats', e);
+    });
+    return () => { mounted = false; };
   }, []);
 
   if (!stats) {
@@ -107,4 +114,3 @@ export const StatsBar: React.FC = () => {
     </div>
   );
 };
-

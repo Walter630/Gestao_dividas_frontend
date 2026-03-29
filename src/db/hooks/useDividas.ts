@@ -1,67 +1,127 @@
-import { useLiveQuery } from 'dexie-react-hooks';
-import { v4 as uuidv4 } from 'uuid';
-import { db } from '../db';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { api } from '../../services/api';
 import type { Divida, DividaInput, PagamentoTipo } from '../types';
 import { StatusDivida, PaymentMode } from '../types';
 import { calculateCurrentValue, calculateDebtBreakdown } from '../../services/taxCalculator';
 
+// ----------------------------------------------------
+// Custom Hooks for the Frontend React Comps
+// ----------------------------------------------------
+
 export function useAllDividas() {
-  return useLiveQuery(() => db.dividas.toArray(), []);
+  const [dividas, setDividas] = useState<Divida[] | undefined>(undefined);
+
+  const fetchDividas = useCallback(async () => {
+    try {
+      const response = await api.get('/debts');
+      
+      // Mapeando dados para bater com a interface do Frontend
+      const backendArray = response.data.map((d: any) => ({
+        id: String(d.id),
+        clienteId: String(d.cliente?.id || d.clientId), // Ajuste as chaves conforme retorno backend
+        valor: d.valorOriginal,
+        descricao: d.descricao,
+        dataVencimento: d.dataVencimento,
+        taxType: d.taxType,
+        taxValue: Number(d.taxJuros),   // Ajuste para interface
+        numeroParcelas: d.numeroParcelas || 1,
+        paymentMode: PaymentMode.PARCELADO,
+        status: d.status || StatusDivida.PENDENTE,
+        valorAtual: d.valorOriginal, // Idealmente o backend manda o breakdown junto
+        pagamentos: d.pagamentos || [],
+      }));
+
+      setDividas(backendArray);
+    } catch (error) {
+      console.error('Falha ao buscar dividas', error);
+      setDividas([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDividas();
+  }, [fetchDividas]);
+
+  return dividas;
 }
 
 export function useDividaById(id: string | undefined) {
-  return useLiveQuery(() => (id ? db.dividas.get(id) : undefined), [id]);
+  const [divida, setDivida] = useState<Divida | undefined>(undefined);
+
+  const fetchDivida = useCallback(async () => {
+    if (!id) return;
+    try {
+      const response = await api.get(`/debts/${id}`);
+      const d = response.data;
+      
+      // Convertendo a resposta da API para a interface `Divida` do seu Frontend
+      const mD: Divida = {
+        id: String(d.id),
+        clienteId: String(d.cliente?.id || d.clientId || d.clienteId),
+        valor: d.valorOriginal,
+        descricao: d.descricao,
+        dataVencimento: d.dataVencimento,
+        taxType: d.taxType,
+        taxValue: Number(d.taxJuros),
+        numeroParcelas: d.numeroParcelas || 1,
+        paymentMode: PaymentMode.PARCELADO,
+        status: d.status || StatusDivida.PENDENTE,
+        valorAtual: d.valorOriginal,
+        pagamentos: d.pagamentos || [],
+        createAt: d.createAt || new Date().toISOString()
+      };
+      
+      setDivida(mD);
+    } catch (error) {
+      console.error('Falha ao buscar divida by id', error);
+      setDivida(undefined);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    fetchDivida();
+  }, [fetchDivida]);
+
+  return divida;
 }
 
-export async function createDivida(input: DividaInput): Promise<string> {
-  const now = new Date().toISOString();
-  const valorAtual = calculateCurrentValue(
-    input.valor,
-    input.taxType,
-    input.taxValue,
-    input.dataVencimento,
-    [],
-    input.paymentMode
-  );
+// ----------------------------------------------------
+// Functions to Interact with Backend
+// ----------------------------------------------------
 
-  const divida: Divida = {
-    id: uuidv4(),
-    ...input,
-    valorAtual,
-    lembreteEnviado: null,
-    pagamentos: [],
-    createAt: now,
-    updateAt: now,
+export async function createDivida(input: DividaInput): Promise<string> {
+  // Converte a interface do frontend para o body aceito pelo backend:
+  // POST /debts -> clientId, valorOriginal, descricao, dataVencimento, taxType, taxJuros, numeroParcelas
+  const body = {
+    clientId: input.clienteId,
+    valorOriginal: input.valor,
+    descricao: input.descricao,
+    dataVencimento: input.dataVencimento, 
+    taxType: input.taxType, // JUROS_MENSAL / JUROS_SIMPLES
+    taxJuros: input.taxValue, // de 0.0 a 1.0 (ex 0.05)
+    numeroParcelas: input.numeroParcelas || 1
   };
 
-  await db.dividas.add(divida);
-  return divida.id!;
+  const res = await api.post('/debts', body);
+  return res.data?.id || 'nova_divida';
 }
 
 export async function updateDivida(id: string, updates: Partial<DividaInput>): Promise<void> {
-  const existing = await db.dividas.get(id);
-  if (!existing) return;
-
-  const merged = { ...existing, ...updates };
-  const pagamentos = merged.pagamentos || [];
-  const valorAtual = calculateCurrentValue(
-    merged.valor,
-    merged.taxType,
-    merged.taxValue,
-    merged.dataVencimento,
-    pagamentos,
-    merged.paymentMode
-  );
-
-  await db.dividas.update(id, {
-    ...updates,
-    valorAtual,
-    updateAt: new Date().toISOString(),
-  });
+  // Pelas rotas informadas, não existe PUT /debts/{id} a não ser /status.
+  console.warn('Backend sem suporte total a updateDivida. Apenas status e pagamentos existem.');
+  if (updates.status) {
+    await updateStatus(id, updates.status);
+  }
 }
 
 export async function deleteDivida(id: string): Promise<void> {
-  await db.dividas.delete(id);
+  // Rota DELETE não listada
+  console.warn('Mock: backend sem rota DELETE /debts.');
+}
+
+export async function updateStatus(id: string, novoStatus: StatusDivida) {
+  // Rotas listadas: PUT /debts/{id}/status 
+  await api.put(`/debts/${id}/status`, { status: novoStatus });
 }
 
 export async function addPagamento(
@@ -70,72 +130,39 @@ export async function addPagamento(
   data: string,
   tipo: PagamentoTipo = 'parcela'
 ): Promise<void> {
-  const divida = await db.dividas.get(dividaId);
-  if (!divida) throw new Error('Dívida não encontrada');
-
-  const novoPagamento = { id: uuidv4(), valor, data, tipo };
-  const pagamentos = [...(divida.pagamentos || []), novoPagamento];
-  
-  const novoValorAtual = calculateCurrentValue(
-    divida.valor,
-    divida.taxType,
-    divida.taxValue,
-    divida.dataVencimento,
-    pagamentos,
-    divida.paymentMode
-  );
-
-  const updates: Partial<Divida> = {
-    pagamentos,
-    valorAtual: novoValorAtual,
-    updateAt: new Date().toISOString(),
+  // POST /debts/{debtId}/payments -> valorPago, dataPagamento
+  const body = {
+    valorPago: valor,
+    dataPagamento: data // data em formato ISO LocalDateTime/Date
   };
-
-  // If it's a quitacao payment, mark the debt as paid
+  await api.post(`/debts/${dividaId}/payments`, body);
+  
   if (tipo === 'quitacao') {
-    updates.status = StatusDivida.PAGA;
+    await updateStatus(dividaId, StatusDivida.PAGA);
   }
-
-  await db.dividas.update(dividaId, updates);
 }
 
+// ----------------------------------------------------
+// Lógicas Locais / Stats mantidas para o Dashboard
+// ----------------------------------------------------
+
 export async function markReminderSent(id: string): Promise<void> {
-  await db.dividas.update(id, {
-    lembreteEnviado: new Date().toISOString(),
-    updateAt: new Date().toISOString(),
-  });
+  console.warn('Backend responsável agora.');
 }
 
 export async function updateAllCurrentValues(): Promise<void> {
-  const all = await db.dividas.toArray();
-  for (const d of all) {
-    if (d.status === StatusDivida.PENDENTE || d.status === StatusDivida.VENCIDA) {
-      const newVal = calculateCurrentValue(
-        d.valor, d.taxType, d.taxValue, d.dataVencimento,
-        d.pagamentos || [], d.paymentMode
-      );
-      if (newVal !== d.valorAtual) {
-        await db.dividas.update(d.id!, { valorAtual: newVal, updateAt: new Date().toISOString() });
-      }
-    }
-  }
+  console.warn('Backend assumiu job responsável de atualização e valores diários.');
 }
 
 export async function autoMarkOverdue(): Promise<void> {
-  const now = new Date().toISOString();
-  const pending = await db.dividas.where('status').equals(StatusDivida.PENDENTE).toArray();
-  for (const d of pending) {
-    if (d.dataVencimento < now) {
-      await db.dividas.update(d.id!, {
-        status: StatusDivida.VENCIDA,
-        updateAt: new Date().toISOString(),
-      });
-    }
-  }
+  console.warn('Backend assumiu cron job de vencidas.');
 }
 
+// Função de estatísticas para o Dashboard que acessa API `/debts`
 export async function getDividaStats() {
-  const all = await db.dividas.toArray();
+  const res = await api.get('/debts');
+  const all: any[] = res.data || [];
+  
   const stats = {
     total: all.length,
     totalValor: 0,
@@ -154,49 +181,48 @@ export async function getDividaStats() {
   };
 
   for (const d of all) {
-    stats.totalValor += d.valor;
-    stats.totalValorAtual += d.valorAtual;
-    
-    // Calculate breakdown for each debt
-    const breakdown = calculateDebtBreakdown(
-      d.valor, d.taxType, d.taxValue, d.dataVencimento,
-      d.paymentMode || PaymentMode.PARCELADO,
-      d.pagamentos || []
-    );
+    // Map minimal data to compute local calculations if backend didn't do it.
+    // Ideal: GET `/dashboard/stats` no Backend real!
+    const valorOriginal = d.valorOriginal || d.valor || 0;
+    const pagamentos = d.pagamentos || [];
+    const status = d.status || StatusDivida.PENDENTE;
 
-    // Sum partial payments
-    const totalAmortizado = d.pagamentos?.reduce((acc, p) => acc + p.valor, 0) || 0;
+    stats.totalValor += valorOriginal;
+    stats.totalValorAtual += valorOriginal; // (Precisa refinar calculos ou buscar breakdown /debts/{id}/breakdown)
+
+    const totalAmortizado = pagamentos.reduce((acc: any, p: any) => acc + (p.valor || p.valorPago || 0), 0) || 0;
     stats.valorPago += totalAmortizado;
 
-    // Accumulate interest stats for active debts
-    if (d.status !== StatusDivida.PAGA && d.status !== StatusDivida.CANCELADA) {
-      stats.totalEmprestado += d.valor;
-      stats.jurosAcumulados += breakdown.jurosAcumulados;
-      stats.jurosPendentes += breakdown.jurosPendentes;
+    if (status !== StatusDivida.PAGA && status !== StatusDivida.CANCELADA) {
+      stats.totalEmprestado += valorOriginal;
+      stats.jurosAcumulados += 0; // Necessaria Rota de Summary Backend para estatísticas 100% corretas
+      stats.jurosPendentes += 0;
     }
 
-    switch (d.status) {
+    switch (status) {
       case StatusDivida.PENDENTE:
+      case 'PENDENTE':
         stats.pendentes++;
-        stats.valorPendente += breakdown.jurosAcumulados > 0
-          ? breakdown.jurosPendentes
-          : d.valorAtual;
+        stats.valorPendente += valorOriginal - totalAmortizado;
         break;
       case StatusDivida.PAGA:
+      case 'PAGA':
         stats.pagas++;
-        // If it was marked as paid without using the partial payment system:
         if (totalAmortizado === 0) {
-          stats.valorPago += d.valor;
+          stats.valorPago += valorOriginal;
         }
         break;
       case StatusDivida.VENCIDA:
+      case 'VENCIDA':
         stats.vencidas++;
-        stats.valorVencido += d.valorAtual;
+        stats.valorVencido += valorOriginal;
         break;
       case StatusDivida.CANCELADA:
+      case 'CANCELADA':
         stats.canceladas++;
         break;
       case StatusDivida.NEGOCIANDO:
+      case 'NEGOCIANDO':
         stats.negociando++;
         break;
     }

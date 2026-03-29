@@ -1,5 +1,5 @@
-import React from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
+import React, { useMemo } from 'react';
+import { useAllDividas } from '../../db/hooks/useDividas';
 import {
   PieChart,
   Pie,
@@ -8,28 +8,29 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { db } from '../../db/db';
 import { STATUS_LABELS, STATUS_COLORS, StatusDivida } from '../../db/types';
 import { formatCurrency } from '../../services/taxCalculator';
 
 export const DebtsByStatusChart: React.FC = () => {
-  const data = useLiveQuery(async () => {
-    const all = await db.dividas.toArray();
+  const allDividas = useAllDividas();
+  
+  const data = useMemo(() => {
+    if (!allDividas) return null;
     const grouped: Record<string, { count: number; value: number }> = {};
 
-    for (const d of all) {
+    for (const d of allDividas) {
       if (!grouped[d.status]) grouped[d.status] = { count: 0, value: 0 };
       grouped[d.status].count++;
-      grouped[d.status].value += d.valorAtual;
+      grouped[d.status].value += (d.valorAtual || d.valorOriginal || d.valor || 0);
     }
 
     return Object.entries(grouped).map(([status, { count, value }]) => ({
-      name: STATUS_LABELS[status as StatusDivida],
+      name: STATUS_LABELS[status as StatusDivida] || status,
       value: count,
       totalValue: value,
-      color: STATUS_COLORS[status as StatusDivida],
+      color: STATUS_COLORS[status as StatusDivida] || '#cbd5e1',
     }));
-  }, []);
+  }, [allDividas]);
 
   if (!data || data.length === 0) {
     return (
@@ -79,4 +80,3 @@ export const DebtsByStatusChart: React.FC = () => {
     </ResponsiveContainer>
   );
 };
-

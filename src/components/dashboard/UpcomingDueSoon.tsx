@@ -1,25 +1,23 @@
-import React from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
+import React, { useMemo } from 'react';
+import { useAllDividas } from '../../db/hooks/useDividas';
 import { Link } from 'react-router-dom';
-import { db } from '../../db/db';
 import { StatusDivida } from '../../db/types';
 import { formatCurrency, formatDate } from '../../services/taxCalculator';
 import { addDays, differenceInDays } from 'date-fns';
 
 export const UpcomingDueSoon: React.FC = () => {
-  const dividas = useLiveQuery(async () => {
+  const allDividas = useAllDividas();
+
+  const dividas = useMemo(() => {
+    if (!allDividas) return null;
     const now = new Date();
     const sevenDays = addDays(now, 7).toISOString();
-    const all = await db.dividas
-      .where('status')
-      .anyOf([StatusDivida.PENDENTE, StatusDivida.NEGOCIANDO])
-      .toArray();
-
-    return all
-      .filter((d) => d.dataVencimento <= sevenDays)
+    
+    return allDividas
+      .filter((d) => (d.status === StatusDivida.PENDENTE || d.status === StatusDivida.NEGOCIANDO) && d.dataVencimento <= sevenDays)
       .sort((a, b) => a.dataVencimento.localeCompare(b.dataVencimento))
       .slice(0, 6);
-  }, []);
+  }, [allDividas]);
 
   if (!dividas) return null;
 
@@ -53,7 +51,7 @@ export const UpcomingDueSoon: React.FC = () => {
               />
               <div className="flex-1 min-w-0">
                 <p className="text-white text-sm font-medium truncate group-hover:text-primary-400 transition-colors">
-                  {d.devedorNome}
+                  {d.devedorNome || 'Cliente Desconhecido'}
                 </p>
                 <p className="text-gray-500 text-xs">
                   {isOverdue
@@ -74,4 +72,3 @@ export const UpcomingDueSoon: React.FC = () => {
     </div>
   );
 };
-

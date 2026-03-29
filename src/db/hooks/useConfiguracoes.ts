@@ -1,5 +1,4 @@
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../db';
+import { useState, useEffect } from 'react';
 import { TaxType, PaymentMode } from '../types';
 import type { Configuracoes } from '../types';
 
@@ -12,27 +11,45 @@ const DEFAULT_CONFIG: Configuracoes = {
   whatsappTemplate: 'Olá {nome}, tudo bem? Passando para lembrar que a sua parcela de {valorAtual} venceu (ou vencerá) no dia {dataVencimento}.'
 };
 
+const STORAGE_KEY = '@app_config';
+
 export function useConfiguracoes() {
-  const config = useLiveQuery(() => db.configuracoes.get(1));
-  
-  // Initialize if missing (outside of useLiveQuery for safety, though Dexie usually handles this)
-  // However, useLiveQuery is for reading. Let's make it more robust.
+  const [config, setConfig] = useState<Configuracoes>(DEFAULT_CONFIG);
+
+  useEffect(() => {
+    const load = () => {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        try {
+          setConfig(JSON.parse(stored));
+        } catch(e) {}
+      }
+    };
+    load();
+    // Escuta evento custom para atualizar reactivamente
+    window.addEventListener('app_config_updated', load);
+    return () => window.removeEventListener('app_config_updated', load);
+  }, []);
+
   return config;
 }
 
-// Ensure settings exist (can be called on app init)
 export async function initConfiguracoes() {
-  const config = await db.configuracoes.get(1);
-  if (!config) {
-    await db.configuracoes.put(DEFAULT_CONFIG);
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (!stored) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_CONFIG));
   }
 }
 
 export async function updateConfiguracoes(data: Partial<Omit<Configuracoes, 'id'>>) {
-  const existing = await db.configuracoes.get(1);
-  if (!existing) {
-    await db.configuracoes.add({ ...DEFAULT_CONFIG, ...data });
-  } else {
-    await db.configuracoes.update(1, data);
+  const stored = localStorage.getItem(STORAGE_KEY);
+  let current = DEFAULT_CONFIG;
+  if (stored) {
+    try {
+      current = JSON.parse(stored);
+    } catch(e) {}
   }
+  const updated = { ...current, ...data };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  window.dispatchEvent(new Event('app_config_updated'));
 }

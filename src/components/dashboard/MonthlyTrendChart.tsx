@@ -1,5 +1,5 @@
-import React from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
+import React, { useMemo } from 'react';
+import { useAllDividas } from '../../db/hooks/useDividas';
 import {
   BarChart,
   Bar,
@@ -9,15 +9,16 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { db } from '../../db/db';
 import { subMonths, startOfMonth, endOfMonth, getMonth } from 'date-fns';
 
 const MONTHS_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 import { formatCurrency } from '../../services/taxCalculator';
 
 export const MonthlyTrendChart: React.FC = () => {
-  const data = useLiveQuery(async () => {
-    const all = await db.dividas.toArray();
+  const allDividas = useAllDividas();
+  
+  const data = useMemo(() => {
+    if (!allDividas) return null;
     const months = [];
 
     for (let i = 5; i >= 0; i--) {
@@ -25,11 +26,11 @@ export const MonthlyTrendChart: React.FC = () => {
       const start = startOfMonth(date).toISOString();
       const end = endOfMonth(date).toISOString();
 
-      const monthDebts = all.filter((d) => d.createAt >= start && d.createAt <= end);
-      const totalValue = monthDebts.reduce((sum, d) => sum + d.valor, 0);
+      const monthDebts = allDividas.filter((d: any) => d.createAt >= start && d.createAt <= end);
+      const totalValue = monthDebts.reduce((sum: number, d: any) => sum + (d.valorOriginal || d.valor), 0);
       const paidValue = monthDebts
-        .filter((d) => d.status === 'PAGA')
-        .reduce((sum, d) => sum + d.valor, 0);
+        .filter((d: any) => d.status === 'PAGA')
+        .reduce((sum: number, d: any) => sum + (d.valorOriginal || d.valor), 0);
 
       months.push({
         month: MONTHS_PT[getMonth(date)],
@@ -40,7 +41,7 @@ export const MonthlyTrendChart: React.FC = () => {
     }
 
     return months;
-  }, []);
+  }, [allDividas]);
 
   if (!data) return null;
 
@@ -84,4 +85,3 @@ export const MonthlyTrendChart: React.FC = () => {
     </ResponsiveContainer>
   );
 };
-

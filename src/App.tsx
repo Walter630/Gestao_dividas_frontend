@@ -11,50 +11,39 @@ import { ClientDetailPage } from './pages/ClientDetailPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { LandingPage } from './pages/LandingPage';
 import { SubscriptionPage } from './pages/SubscriptionPage';
+import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { InstallBanner } from './components/ui/InstallBanner';
-import { checkAndSendReminders } from './services/reminderService';
-import { autoMarkOverdue, updateAllCurrentValues } from './db/hooks/useDividas';
-import { initConfiguracoes } from './db/hooks/useConfiguracoes';
 import './App.css';
 
 function App() {
   useEffect(() => {
-    // On app load: auto-mark overdue, refresh values, check reminders
-    autoMarkOverdue();
-    updateAllCurrentValues();
-    checkAndSendReminders();
-    initConfiguracoes();
-
-    const interval = setInterval(() => {
-      checkAndSendReminders();
-    }, 30 * 60 * 1000);
-
-    // Auto update expired routines frequently (every 10 seconds)
-    const activeUpdateInterval = setInterval(() => {
-      autoMarkOverdue();
-      updateAllCurrentValues();
-    }, 10 * 1000);
-
-    return () => {
-      clearInterval(interval);
-      clearInterval(activeUpdateInterval);
-    };
+    // Com a migração para API Rest, algumas lógicas locais como "autoMarkOverdue" 
+    // ou "checkAndSendReminders" deverão ser transferidas para processos/cron no backend.
+    // As chamadas originais ao Dexie foram removidas.
   }, []);
 
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/dividas" element={<DebtListPage />} />
-        <Route path="/dividas/nova" element={<NewDebtPage />} />
-        <Route path="/dividas/:id" element={<DebtDetailPage />} />
-        <Route path="/dividas/:id/editar" element={<EditDebtPage />} />
-        <Route path="/clientes" element={<ClientListPage />} />
-        <Route path="/clientes/novo" element={<NewClientPage />} />
-        <Route path="/clientes/:id" element={<ClientDetailPage />} />
-        <Route path="/configuracoes" element={<SettingsPage />} />
-        <Route path="/assinatura" element={<SubscriptionPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        
+        {/* Rotas Protegidas */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/dividas" element={<DebtListPage />} />
+          <Route path="/dividas/nova" element={<NewDebtPage />} />
+          <Route path="/dividas/:id" element={<DebtDetailPage />} />
+          <Route path="/dividas/:id/editar" element={<EditDebtPage />} />
+          <Route path="/clientes" element={<ClientListPage />} />
+          <Route path="/clientes/novo" element={<NewClientPage />} />
+          <Route path="/clientes/:id" element={<ClientDetailPage />} />
+          <Route path="/configuracoes" element={<SettingsPage />} />
+          <Route path="/assinatura" element={<SubscriptionPage />} />
+        </Route>
       </Routes>
       <InstallBanner />
     </BrowserRouter>
