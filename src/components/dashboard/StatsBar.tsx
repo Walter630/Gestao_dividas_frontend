@@ -11,8 +11,8 @@ export const StatsBar: React.FC = () => {
 
   if (!stats) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {[...Array(4)].map((_, i) => (
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        {[...Array(6)].map((_, i) => (
           <div key={i} className="bg-dark-600 border border-dark-300/50 rounded-2xl p-5 animate-pulse h-32" />
         ))}
       </div>
@@ -20,7 +20,7 @@ export const StatsBar: React.FC = () => {
   }
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
       <StatCard
         title="Total de Dívidas"
         value={String(stats.total)}
@@ -36,9 +36,37 @@ export const StatsBar: React.FC = () => {
       />
 
       <StatCard
-        title="Valor Pendente"
-        value={formatCurrency(stats.valorPendente)}
-        subtitle={`${stats.pendentes} dívida(s)`}
+        title="Total Emprestado"
+        value={formatCurrency(stats.totalEmprestado)}
+        subtitle="Valor original das dívidas ativas"
+        color="primary"
+        icon={
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+            />
+          </svg>
+        }
+      />
+
+      <StatCard
+        title="Juros Acumulados"
+        value={formatCurrency(stats.jurosAcumulados)}
+        subtitle="Total de juros (dívidas + cartão)"
+        color="danger"
+        icon={
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+            />
+          </svg>
+        }
+      />
+
+      <StatCard
+        title="Juros Pendentes"
+        value={formatCurrency(stats.jurosPendentes)}
+        subtitle={`${stats.pendentes} dívida(s) ativas`}
         color="warning"
         icon={
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

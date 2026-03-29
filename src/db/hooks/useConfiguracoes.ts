@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
-import { TaxType } from '../types';
+import { TaxType, PaymentMode } from '../types';
 import type { Configuracoes } from '../types';
 
 const DEFAULT_CONFIG: Configuracoes = {
@@ -8,6 +8,7 @@ const DEFAULT_CONFIG: Configuracoes = {
   nomeEmpresa: 'Minha Empresa',
   taxaPadrao: 0,
   tipoJurosPadrao: TaxType.SEM_JUROS,
+  paymentModePadrao: PaymentMode.PARCELADO,
   whatsappTemplate: 'Olá {nome}, tudo bem? Passando para lembrar que a sua parcela de {valorAtual} venceu (ou vencerá) no dia {dataVencimento}.'
 };
 

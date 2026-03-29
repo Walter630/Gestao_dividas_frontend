@@ -2,7 +2,7 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { Input, Select, Textarea } from '../ui/Input';
 import { Button } from '../ui/Button';
-import { StatusDivida, TaxType, STATUS_LABELS, TAX_TYPE_LABELS } from '../../db/types';
+import { StatusDivida, TaxType, STATUS_LABELS, TAX_TYPE_LABELS, PaymentMode, PAYMENT_MODE_LABELS } from '../../db/types';
 import { calculateCurrentValue, formatCurrency } from '../../services/taxCalculator';
 import type { DividaInput } from '../../db/types';
 import { useAllClientes } from '../../db/hooks/useClientes';
@@ -18,6 +18,7 @@ interface DebtFormFields {
   status: string;
   taxType: string;
   taxValue: string;
+  paymentMode: string;
 }
 
 interface DebtFormProps {
@@ -31,6 +32,7 @@ interface DebtFormProps {
     status?: StatusDivida;
     taxType?: TaxType;
     taxValue?: number;
+    paymentMode?: PaymentMode;
   };
   onSubmit: (data: DividaInput, newClient?: { nome: string, email?: string, telefone?: string }) => Promise<void>;
   submitLabel?: string;
@@ -39,6 +41,7 @@ interface DebtFormProps {
 
 const statusOptions = Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }));
 const taxTypeOptions = Object.entries(TAX_TYPE_LABELS).map(([value, label]) => ({ value, label }));
+const paymentModeOptions = Object.entries(PAYMENT_MODE_LABELS).map(([value, label]) => ({ value, label }));
 
 export const DebtForm: React.FC<DebtFormProps> = ({
   defaultValues,
@@ -60,6 +63,7 @@ export const DebtForm: React.FC<DebtFormProps> = ({
       status: defaultValues?.status ?? StatusDivida.PENDENTE,
       taxType: defaultValues?.taxType ?? TaxType.SEM_JUROS,
       taxValue: String(defaultValues?.taxValue ?? 0),
+      paymentMode: defaultValues?.paymentMode ?? PaymentMode.PARCELADO,
       valor: defaultValues?.valor !== undefined ? String(defaultValues.valor) : '',
       clienteId: defaultValues?.clienteId ?? '',
       clienteNome: '',
@@ -79,7 +83,9 @@ export const DebtForm: React.FC<DebtFormProps> = ({
           numValor,
           watchedValues.taxType as TaxType,
           numTaxValue,
-          watchedValues.dataVencimento
+          watchedValues.dataVencimento,
+          [],
+          watchedValues.paymentMode as PaymentMode
         )
       : null;
 
@@ -105,6 +111,7 @@ export const DebtForm: React.FC<DebtFormProps> = ({
       status: data.status as StatusDivida,
       taxType: data.taxType as TaxType,
       taxValue: parseFloat(data.taxValue) || 0,
+      paymentMode: data.paymentMode as PaymentMode,
     }, newClientData);
   };
 
@@ -206,6 +213,20 @@ export const DebtForm: React.FC<DebtFormProps> = ({
           disabled={watchedValues.taxType === TaxType.SEM_JUROS}
         />
       </div>
+
+      {/* Payment Mode */}
+      <Select
+        label="Modo de Pagamento"
+        options={paymentModeOptions}
+        error={errors.paymentMode?.message}
+        required
+        {...register('paymentMode')}
+      />
+      <p className="text-xs text-gray-500 -mt-3">
+        {watchedValues.paymentMode === PaymentMode.JUROS_MENSAL
+          ? '💡 Juros pagos por mês, valor principal quitado de uma vez.'
+          : '💡 Pagamentos descontados do valor total (amortização).'}
+      </p>
 
       {/* Status */}
       <Select

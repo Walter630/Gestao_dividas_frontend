@@ -13,6 +13,13 @@ export enum TaxType {
   SEM_JUROS = 'SEM_JUROS',
 }
 
+export enum PaymentMode {
+  JUROS_MENSAL = 'JUROS_MENSAL',
+  PARCELADO = 'PARCELADO',
+}
+
+export type PagamentoTipo = 'juros' | 'parcela' | 'quitacao';
+
 export interface Cliente {
   id?: string;
   nome: string;
@@ -27,6 +34,7 @@ export interface Configuracoes {
   nomeEmpresa: string;
   taxaPadrao: number;
   tipoJurosPadrao: TaxType;
+  paymentModePadrao: PaymentMode;
   whatsappTemplate: string;
 }
 
@@ -41,6 +49,7 @@ export interface Divida {
   status: StatusDivida;
   taxType: TaxType;
   taxValue: number;
+  paymentMode: PaymentMode;
   valorAtual: number;
   lembreteEnviado: string | null;
   pagamentos?: Pagamento[]; // Optional to support older records
@@ -54,6 +63,7 @@ export interface Pagamento {
   id: string;
   data: string;
   valor: number;
+  tipo: PagamentoTipo;
 }
 
 export const STATUS_LABELS: Record<StatusDivida, string> = {
@@ -69,6 +79,11 @@ export const TAX_TYPE_LABELS: Record<TaxType, string> = {
   [TaxType.COMPOSTA]: 'Juros Composta',
   [TaxType.JUROS_FIXO]: 'Juros Fixo (Mensal)',
   [TaxType.SEM_JUROS]: 'Sem Juros',
+};
+
+export const PAYMENT_MODE_LABELS: Record<PaymentMode, string> = {
+  [PaymentMode.JUROS_MENSAL]: 'Pagar Juros Mensal + Quitar Total',
+  [PaymentMode.PARCELADO]: 'Parcelado (Amortização)',
 };
 
 export const STATUS_COLORS: Record<StatusDivida, string> = {

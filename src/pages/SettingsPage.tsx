@@ -5,17 +5,19 @@ import { Topbar } from '../components/layout/Topbar';
 import { useConfiguracoes, updateConfiguracoes } from '../db/hooks/useConfiguracoes';
 import { Input, Select, Textarea } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
-import { TaxType, TAX_TYPE_LABELS } from '../db/types';
+import { TaxType, TAX_TYPE_LABELS, PaymentMode, PAYMENT_MODE_LABELS } from '../db/types';
 import { toast } from 'sonner';
 
 interface SettingsForm {
   nomeEmpresa: string;
   tipoJurosPadrao: string;
   taxaPadrao: string;
+  paymentModePadrao: string;
   whatsappTemplate: string;
 }
 
 const taxTypeOptions = Object.entries(TAX_TYPE_LABELS).map(([value, label]) => ({ value, label }));
+const paymentModeOptions = Object.entries(PAYMENT_MODE_LABELS).map(([value, label]) => ({ value, label }));
 
 export const SettingsPage: React.FC = () => {
   const config = useConfiguracoes();
@@ -27,6 +29,7 @@ export const SettingsPage: React.FC = () => {
         nomeEmpresa: config.nomeEmpresa,
         tipoJurosPadrao: config.tipoJurosPadrao,
         taxaPadrao: String(config.taxaPadrao),
+        paymentModePadrao: config.paymentModePadrao || PaymentMode.PARCELADO,
         whatsappTemplate: config.whatsappTemplate,
       });
     }
@@ -40,6 +43,7 @@ export const SettingsPage: React.FC = () => {
         nomeEmpresa: data.nomeEmpresa,
         tipoJurosPadrao: data.tipoJurosPadrao as TaxType,
         taxaPadrao: parseFloat(data.taxaPadrao) || 0,
+        paymentModePadrao: data.paymentModePadrao as PaymentMode,
         whatsappTemplate: data.whatsappTemplate,
       });
       toast.success('Configurações salvas com sucesso!');
@@ -108,6 +112,28 @@ export const SettingsPage: React.FC = () => {
             <p className="text-xs text-gray-500 mt-2">
               Esses valores virão preenchidos automaticamente ao criar uma "Nova Dívida".
             </p>
+          </div>
+
+          <div className="pt-4 border-t border-dark-400">
+            <h3 className="text-white font-bold text-base mb-4 flex items-center gap-2">
+              <svg className="w-5 h-5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              Modo de Pagamento Padrão
+            </h3>
+            <Select
+              label="Como os pagamentos são aplicados"
+              options={paymentModeOptions}
+              {...register('paymentModePadrao')}
+            />
+            <div className="mt-3 p-3 bg-dark-500/50 rounded-lg border border-dark-300/30">
+              <p className="text-xs text-gray-400 leading-relaxed">
+                <strong className="text-primary-300">Juros Mensal:</strong> O devedor paga somente os juros por mês. O valor principal (montante) é pago de uma vez na quitação.
+              </p>
+              <p className="text-xs text-gray-400 leading-relaxed mt-2">
+                <strong className="text-primary-300">Parcelado:</strong> Os pagamentos são descontados do valor total (juros + principal), como amortização.
+              </p>
+            </div>
           </div>
 
           <div className="pt-4 border-t border-dark-400">

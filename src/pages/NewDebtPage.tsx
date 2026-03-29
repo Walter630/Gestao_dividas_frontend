@@ -72,6 +72,7 @@ export const NewDebtPage: React.FC = () => {
             defaultValues={{
               taxType: config.tipoJurosPadrao,
               taxValue: config.taxaPadrao,
+              paymentMode: config.paymentModePadrao,
               status: StatusDivida.PENDENTE
             }}
             onSubmit={handleSubmit}

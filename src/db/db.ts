@@ -43,6 +43,39 @@ export class DebtDatabase extends Dexie {
         }
       }
     });
+
+    // Version 3: Add paymentMode to debts and tipo to pagamentos
+    this.version(3).stores({
+      dividas: 'id, clienteId, devedorNome, status, taxType, paymentMode, dataVencimento, createAt, updateAt',
+      clientes: 'id, nome, email, telefone',
+      configuracoes: 'id'
+    }).upgrade(async (tx) => {
+      const allDividas = await tx.table('dividas').toArray();
+      for (const divida of allDividas) {
+        const updates: any = {};
+        // Set default paymentMode to PARCELADO for existing debts
+        if (!divida.paymentMode) {
+          updates.paymentMode = 'PARCELADO';
+        }
+        // Add tipo to existing pagamentos
+        if (divida.pagamentos && divida.pagamentos.length > 0) {
+          const updatedPagamentos = divida.pagamentos.map((p: any) => ({
+            ...p,
+            tipo: p.tipo || 'parcela',
+          }));
+          updates.pagamentos = updatedPagamentos;
+        }
+        if (Object.keys(updates).length > 0) {
+          await tx.table('dividas').update(divida.id, updates);
+        }
+      }
+
+      // Update configuracoes with paymentModePadrao
+      const config = await tx.table('configuracoes').get(1);
+      if (config && !config.paymentModePadrao) {
+        await tx.table('configuracoes').update(1, { paymentModePadrao: 'PARCELADO' });
+      }
+    });
   }
 }
 

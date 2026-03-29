@@ -5,7 +5,7 @@ import { InstallButton } from '../ui/InstallBanner';
 
 const navItems = [
   {
-    path: '/',
+    path: '/dashboard',
     label: 'Dashboard',
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -61,6 +61,17 @@ const navItems = [
       </svg>
     ),
   },
+  {
+    path: '/assinatura',
+    label: 'Plano SaaS',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+          d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04M12 2.944v10.056m0 8.056a11.955 11.955 0 01-8.618-3.04m17.236 0A11.955 11.955 0 0112 21.056"
+        />
+      </svg>
+    ),
+  },
 ];
 
 export const Sidebar: React.FC = () => {
@@ -109,11 +120,12 @@ export const Sidebar: React.FC = () => {
           {navItems.map((item) => {
             const isActiveNew = item.path === '/dividas/nova' && location.pathname === '/dividas/nova';
             const isActiveDividas = item.path === '/dividas' && location.pathname === '/dividas';
-            const isActiveDash = item.path === '/' && location.pathname === '/';
+            const isActiveDash = item.path === '/dashboard' && location.pathname === '/dashboard';
             const isActiveClientes = item.path === '/clientes' && location.pathname.startsWith('/clientes');
             const isActiveConfig = item.path === '/configuracoes' && location.pathname.startsWith('/configuracoes');
+            const isActiveAssinatura = item.path === '/assinatura' && location.pathname.startsWith('/assinatura');
 
-            const active = isActiveNew || isActiveDividas || isActiveDash || isActiveClientes || isActiveConfig;
+            const active = isActiveNew || isActiveDividas || isActiveDash || isActiveClientes || isActiveConfig || isActiveAssinatura;
 
             return (
               <Link

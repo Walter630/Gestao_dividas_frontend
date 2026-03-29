@@ -9,6 +9,8 @@ import { ClientListPage } from './pages/ClientListPage';
 import { NewClientPage } from './pages/NewClientPage';
 import { ClientDetailPage } from './pages/ClientDetailPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { LandingPage } from './pages/LandingPage';
+import { SubscriptionPage } from './pages/SubscriptionPage';
 import { InstallBanner } from './components/ui/InstallBanner';
 import { checkAndSendReminders } from './services/reminderService';
 import { autoMarkOverdue, updateAllCurrentValues } from './db/hooks/useDividas';
@@ -42,7 +44,8 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<DashboardPage />} />
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/dividas" element={<DebtListPage />} />
         <Route path="/dividas/nova" element={<NewDebtPage />} />
         <Route path="/dividas/:id" element={<DebtDetailPage />} />
@@ -51,6 +54,7 @@ function App() {
         <Route path="/clientes/novo" element={<NewClientPage />} />
         <Route path="/clientes/:id" element={<ClientDetailPage />} />
         <Route path="/configuracoes" element={<SettingsPage />} />
+        <Route path="/assinatura" element={<SubscriptionPage />} />
       </Routes>
       <InstallBanner />
     </BrowserRouter>

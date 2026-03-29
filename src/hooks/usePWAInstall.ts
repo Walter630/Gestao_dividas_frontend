@@ -10,13 +10,19 @@ let deferredPrompt: BeforeInstallPromptEvent | null = null;
 export function usePWAInstall() {
   const [canInstall, setCanInstall] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
     // Check if already installed as PWA
-    if (window.matchMedia('(display-mode: standalone)').matches) {
+    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true) {
       setIsInstalled(true);
       return;
     }
+
+    // Detect iOS
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    const ios = /iphone|ipad|ipod/.test(userAgent);
+    setIsIOS(ios);
 
     const handleBeforeInstall = (e: Event) => {
       e.preventDefault();
@@ -55,6 +61,6 @@ export function usePWAInstall() {
     return false;
   };
 
-  return { canInstall, isInstalled, install };
+  return { canInstall, isInstalled, isIOS, install };
 }
 

@@ -93,6 +93,7 @@ export const EditDebtPage: React.FC = () => {
         <div className="bg-dark-600 border border-dark-300/50 rounded-2xl p-6 shadow-card">
           <DebtForm
             defaultValues={{
+              clienteId: divida.clienteId,
               devedorNome: divida.devedorNome,
               devedorEmail: divida.devedorEmail,
               valor: divida.valor,
@@ -101,6 +102,7 @@ export const EditDebtPage: React.FC = () => {
               status: divida.status,
               taxType: divida.taxType,
               taxValue: divida.taxValue,
+              paymentMode: divida.paymentMode,
             }}
             onSubmit={handleSubmit}
             loading={loading}

@@ -10,8 +10,9 @@ import { PaymentModal } from '../components/dividas/PaymentModal';
 import { useDividaById, deleteDivida, updateDivida, addPagamento } from '../db/hooks/useDividas';
 import { useConfiguracoes } from '../db/hooks/useConfiguracoes';
 import { useClienteById } from '../db/hooks/useClientes';
-import { formatCurrency, formatDate, formatDateTime } from '../services/taxCalculator';
-import { TAX_TYPE_LABELS, StatusDivida } from '../db/types';
+import { formatCurrency, formatDate, formatDateTime, calculateDebtBreakdown, calculateMonthlyInterest } from '../services/taxCalculator';
+import { TAX_TYPE_LABELS, PAYMENT_MODE_LABELS, StatusDivida, PaymentMode } from '../db/types';
+import type { PagamentoTipo } from '../db/types';
 import { differenceInDays } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -54,12 +55,18 @@ export const DebtDetailPage: React.FC = () => {
     }
   };
 
-  const handlePayment = async (valor: number, data: string) => {
+  const handlePayment = async (valor: number, data: string, tipo: PagamentoTipo) => {
     if (!id) return;
     setPaymentLoading(true);
     try {
-      await addPagamento(id, valor, data);
-      toast.success('Pagamento registrado com sucesso!');
+      await addPagamento(id, valor, data, tipo);
+      toast.success(
+        tipo === 'quitacao'
+          ? 'Dívida quitada com sucesso!'
+          : tipo === 'juros'
+            ? 'Pagamento de juros registrado!'
+            : 'Pagamento registrado com sucesso!'
+      );
       setPaymentOpen(false);
     } catch (e) {
       toast.error('Erro ao registrar o pagamento');
@@ -101,7 +108,20 @@ export const DebtDetailPage: React.FC = () => {
   const daysUntilDue = differenceInDays(new Date(divida.dataVencimento), new Date());
   const isOverdue = daysUntilDue < 0;
   const isDueSoon = daysUntilDue >= 0 && daysUntilDue <= 3;
-  const interest = divida.valorAtual - divida.valor;
+  
+  // Calculate full breakdown
+  const paymentMode = divida.paymentMode || PaymentMode.PARCELADO;
+  const breakdown = calculateDebtBreakdown(
+    divida.valor,
+    divida.taxType,
+    divida.taxValue,
+    divida.dataVencimento,
+    paymentMode,
+    divida.pagamentos || []
+  );
+  
+  const monthlyInterest = calculateMonthlyInterest(divida.valor, divida.taxType, divida.taxValue);
+  const isJurosMensal = paymentMode === PaymentMode.JUROS_MENSAL;
 
   const handleWhatsApp = () => {
     if (!cliente?.telefone || !config?.whatsappTemplate) {
@@ -118,6 +138,23 @@ export const DebtDetailPage: React.FC = () => {
     const phone = cliente.telefone.replace(/\D/g, '');
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
     window.open(url, '_blank');
+  };
+
+  const tipoLabel = (tipo: string) => {
+    switch (tipo) {
+      case 'juros': return 'Juros';
+      case 'quitacao': return 'Quitação';
+      case 'parcela': return 'Parcela';
+      default: return 'Pagamento';
+    }
+  };
+
+  const tipoColor = (tipo: string) => {
+    switch (tipo) {
+      case 'juros': return 'text-amber-400 bg-amber-500/10';
+      case 'quitacao': return 'text-emerald-400 bg-emerald-500/10';
+      default: return 'text-primary-400 bg-primary-500/10';
+    }
   };
 
   return (
@@ -158,6 +195,13 @@ export const DebtDetailPage: React.FC = () => {
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <StatusBadge status={divida.status} size="md" />
+                <span className={`text-xs px-2 py-1 rounded-lg border ${
+                  isJurosMensal
+                    ? 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20'
+                    : 'text-purple-400 bg-purple-500/10 border-purple-500/20'
+                }`}>
+                  {PAYMENT_MODE_LABELS[paymentMode]}
+                </span>
                 {isOverdue && divida.status !== StatusDivida.PAGA && (
                   <span className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-1 rounded-lg animate-pulse">
                     ⚠ Vencida
@@ -175,23 +219,23 @@ export const DebtDetailPage: React.FC = () => {
 
             <div className="text-right">
               <p className="text-gray-400 text-sm">Valor atual</p>
-              <p className="text-primary-400 text-3xl font-bold">{formatCurrency(divida.valorAtual)}</p>
-              {interest > 0 && (
+              <p className="text-primary-400 text-3xl font-bold">{formatCurrency(breakdown.valorAtual)}</p>
+              {breakdown.jurosAcumulados > 0 && (
                 <p className="text-red-400 text-sm">
-                  +{formatCurrency(interest)} em juros
+                  +{formatCurrency(breakdown.jurosAcumulados)} em juros
                 </p>
               )}
             </div>
           </div>
         </div>
 
-        {/* Details Grid */}
+        {/* Breakdown Card (Valores detalhados) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card>
             <h3 className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-4">Valores</h3>
             <div className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-gray-500 text-sm">Valor original</span>
+                <span className="text-gray-500 text-sm">Valor original (principal)</span>
                 <span className="text-white text-sm font-medium">{formatCurrency(divida.valor)}</span>
               </div>
               <div className="flex justify-between">
@@ -204,16 +248,48 @@ export const DebtDetailPage: React.FC = () => {
                   <span className="text-white text-sm font-medium">{divida.taxValue}%</span>
                 </div>
               )}
-              {interest > 0 && (
+              
+              <div className="pt-2 border-t border-dark-300/30 space-y-2">
                 <div className="flex justify-between">
                   <span className="text-gray-500 text-sm">Juros acumulados</span>
-                  <span className="text-red-400 text-sm font-medium">+{formatCurrency(interest)}</span>
+                  <span className="text-red-400 text-sm font-medium">+{formatCurrency(breakdown.jurosAcumulados)}</span>
+                </div>
+                {isJurosMensal && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 text-sm">Juros já pagos</span>
+                      <span className="text-emerald-400 text-sm font-medium">-{formatCurrency(breakdown.jurosPagos)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 text-sm">Juros pendentes</span>
+                      <span className="text-amber-400 text-sm font-medium">{formatCurrency(breakdown.jurosPendentes)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 text-sm">Saldo do principal</span>
+                      <span className="text-white text-sm font-medium">{formatCurrency(breakdown.saldoPrincipal)}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="pt-2 border-t border-dark-300/30 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-500 text-sm">Total pago</span>
+                  <span className="text-emerald-400 text-sm font-medium">{formatCurrency(breakdown.totalPago)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-300 text-sm font-semibold">Valor atual devendo</span>
+                  <span className="text-primary-400 text-sm font-bold">{formatCurrency(breakdown.valorAtual)}</span>
+                </div>
+              </div>
+
+              {isJurosMensal && monthlyInterest > 0 && (
+                <div className="mt-3 p-3 bg-dark-500/50 rounded-lg border border-dark-300/30">
+                  <p className="text-xs text-gray-400">
+                    💡 Juros estimados do mês: <span className="text-amber-400 font-semibold">{formatCurrency(monthlyInterest)}</span>
+                  </p>
                 </div>
               )}
-              <div className="pt-2 border-t border-dark-300/30 flex justify-between">
-                <span className="text-gray-300 text-sm font-semibold">Valor atual</span>
-                <span className="text-primary-400 text-sm font-bold">{formatCurrency(divida.valorAtual)}</span>
-              </div>
             </div>
           </Card>
 
@@ -246,6 +322,10 @@ export const DebtDetailPage: React.FC = () => {
                   <span className="text-gray-400 text-sm">{formatDateTime(divida.lembreteEnviado)}</span>
                 </div>
               )}
+              <div className="flex justify-between pt-2 border-t border-dark-300/30">
+                <span className="text-gray-500 text-sm">Modo de pagamento</span>
+                <span className="text-white text-sm font-medium">{PAYMENT_MODE_LABELS[paymentMode]}</span>
+              </div>
             </div>
           </Card>
         </div>
@@ -259,7 +339,7 @@ export const DebtDetailPage: React.FC = () => {
         {/* Payments History */}
         {(divida.pagamentos && divida.pagamentos.length > 0) && (
           <Card>
-            <h3 className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-4">Histórico de Pagamentos (Amortização)</h3>
+            <h3 className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-4">Histórico de Pagamentos</h3>
             <div className="space-y-3">
               {[...divida.pagamentos].sort((a,b) => new Date(b.data).getTime() - new Date(a.data).getTime()).map(p => (
                 <div key={p.id} className="flex justify-between items-center p-3 bg-dark-500/50 rounded-lg border border-dark-300/30">
@@ -267,7 +347,9 @@ export const DebtDetailPage: React.FC = () => {
                      <span className="text-primary-400 font-medium text-sm">{formatCurrency(p.valor)}</span>
                      <span className="text-gray-500 text-xs">{formatDateTime(p.data)}</span>
                   </div>
-                  <span className="text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded text-xs">Aprovado</span>
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${tipoColor(p.tipo || 'parcela')}`}>
+                    {tipoLabel(p.tipo || 'parcela')}
+                  </span>
                 </div>
               ))}
             </div>
@@ -295,7 +377,7 @@ export const DebtDetailPage: React.FC = () => {
                 size="md"
                 onClick={() => setPaymentOpen(true)}
               >
-                Adicionar Pagamento
+                {isJurosMensal ? '💰 Registrar Pagamento' : 'Adicionar Pagamento'}
               </Button>
               <Button
                 variant="success"
@@ -333,8 +415,10 @@ export const DebtDetailPage: React.FC = () => {
         onClose={() => setPaymentOpen(false)}
         onSubmit={handlePayment}
         loading={paymentLoading}
+        paymentMode={paymentMode}
+        suggestedInterest={breakdown.jurosPendentes > 0 ? breakdown.jurosPendentes : monthlyInterest}
+        principalBalance={breakdown.saldoPrincipal}
       />
     </Layout>
   );
 };
-
