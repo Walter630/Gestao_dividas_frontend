@@ -7,20 +7,44 @@ import { toast } from 'sonner';
 
 export const RegisterPage = () => {
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const navigate = useNavigate();
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage('');
+
+    if (!username || !email || !password) {
+      setErrorMessage('Por favor, preencha todos os campos.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrorMessage('A senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      await api.post('/auth/register', { username, password, role: 'USER' });
+      await api.post('/auth/register', { username, email, password, role: 'USER' });
       toast.success('Conta criada com sucesso! Faça seu login.');
       navigate('/login');
     } catch (error: any) {
-      toast.error('Falha ao registrar: ' + (error.response?.data?.message || 'Erro desconhecido'));
+      const status = error.response?.status;
+      const backendMessage = error.response?.data?.message || '';
+      
+      if (status === 409 || backendMessage.toLowerCase().includes('in use') || backendMessage.toLowerCase().includes('uso') || backendMessage.toLowerCase().includes('already exists')) {
+        setErrorMessage('Esse nome de usuário ou email já está em uso.');
+        toast.error('Usuário já existe!');
+      } else if (status === 400) {
+        setErrorMessage('Dados inválidos. Verifique as informações fornecidas e tente novamente.');
+      } else {
+        setErrorMessage(backendMessage || 'Ocorreu um erro ao tentar criar a conta. Tente novamente mais tarde.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -60,6 +84,16 @@ export const RegisterPage = () => {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-surface-100 py-8 px-4 shadow-2xl sm:rounded-2xl sm:px-10 border border-surface-200">
           <form className="space-y-6" onSubmit={handleRegister}>
+            
+            {errorMessage && (
+              <div className="bg-red-500/10 border border-red-500/30 text-red-500 px-4 py-3 rounded-xl text-sm flex items-center gap-3 animate-fade-in shadow-inner">
+                <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>{errorMessage}</span>
+              </div>
+            )}
+
             <div>
               <Input
                 label="Nome de usuário"
@@ -69,6 +103,18 @@ export const RegisterPage = () => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Seu username"
+              />
+            </div>
+
+            <div>
+              <Input
+                label="Email"
+                id="email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Seu melhor email"
               />
             </div>
 

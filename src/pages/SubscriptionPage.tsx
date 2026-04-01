@@ -10,24 +10,31 @@ import { toast } from 'sonner';
 export const SubscriptionPage: React.FC = () => {
   const [currentPlan, setCurrentPlan] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // States para o checkout e Modal do QR Code Pier
   const [isCheckoutLoading, setIsCheckoutLoading] = useState<string | null>(null);
   const [qrCodeData, setQrCodeData] = useState<{ qrCode: string; qrCodeBase64?: string } | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [selectedPlanId, setSelectedPlanId] = useState<'FREE' | 'PRO' | 'PREMIUM' | null>(null);
 
   const fetchMyPlan = async () => {
     try {
       const response = await api.get('/subscription/my-plan');
+      console.log('DEBUG: Plano recebido do Backend:', response.data);
       setCurrentPlan(response.data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Falha ao buscar plano', error);
-      // Fallback em caso de erro para manter visual
+      if (error.response?.status === 404) {
+        toast.error('Erro 404: Rota de buscar plano não encontrada no servidor.', { id: 'plan-404' });
+      }
+      // Fallback para o plano Bronze (FREE) caso não encontre ou dê erro
       setCurrentPlan({
-        name: 'Não Encontrado',
-        status: 'Inativo',
-        renewsAt: '---',
-        usage: { dividas: 0, limit: 0 }
+        name: 'Bronze',
+        tipo: 'FREE',
+        status: 'Ativo (Padrão)',
+        renewsAt: 'Vitalício',
+        usage: { dividas: 0, limit: 5 }
       });
     } finally {
       setIsLoading(false);
@@ -38,26 +45,45 @@ export const SubscriptionPage: React.FC = () => {
     fetchMyPlan();
   }, []);
 
+  const initiateCheckout = (planId: 'FREE' | 'PRO' | 'PREMIUM') => {
+    setSelectedPlanId(planId);
+    if (planId === 'FREE') {
+      handleCheckout(planId); // Ativa grátis direto
+    } else {
+      setIsConfirmModalOpen(true); // Pede confirmação para os pagos
+    }
+  };
+
   const handleCheckout = async (planType: 'FREE' | 'PRO' | 'PREMIUM') => {
+    setIsConfirmModalOpen(false);
     setIsCheckoutLoading(planType);
     try {
-      const response = await api.post(`/subscription/checkout/${planType}`);
-      
       if (planType === 'FREE') {
+        // Opcional: Se houver uma rota específica para 'ativar grátis', chame-a aqui.
+        // Se não, apenas mostramos sucesso e atualizamos localmente.
         toast.success('Plano Gratuito ativado com sucesso!');
-        fetchMyPlan(); // Atualiza o plano na tela
+        fetchMyPlan();
       } else {
-        // Se for PRO ou PREMIUM, pegamos o Payload do QR Code
-        // Assumindo que o back manda { qrCode: "000201...", qrCodeBase64: "iVBOR..." }
+        // Nova rota: POST /api/pix/pagamento/{plano}
+        const response = await api.post(`/api/pix/pagamento/${planType}`);
+        console.log('DEBUG: Resposta do PIX:', response.data);
+
+        // Tenta encontrar o QR Code em diferentes nomes comuns
+        const base64 = response.data?.qrCode || response.data?.qrCodeBase64 || response.data?.image || response.data?.imagem;
+
         setQrCodeData({
-          qrCode: response.data?.qrCode || response.data || 'Código PIX Indisponível',
-          qrCodeBase64: response.data?.qrCodeBase64 || null
+          qrCode: response.data?.payload || response.data?.chavePix || 'Código PIX Indisponível',
+          qrCodeBase64: base64 || null
         });
         setIsModalOpen(true);
       }
     } catch (error: any) {
       console.error('Erro no checkout', error);
-      toast.error(error.response?.data?.message || 'Erro ao gerar checkout do plano.');
+      if (error.response?.status === 404) {
+        toast.error(`Erro 404: A rota para assinar o plano ${planType} não existe no backend!`, { duration: 5000 });
+      } else {
+        toast.error(error.response?.data?.message || 'Erro ao gerar checkout do plano.');
+      }
     } finally {
       setIsCheckoutLoading(null);
     }
@@ -72,9 +98,9 @@ export const SubscriptionPage: React.FC = () => {
 
   return (
     <Layout>
-      <Topbar 
-        title="Meu Plano" 
-        subtitle="Gerencie sua assinatura e limites do sistema" 
+      <Topbar
+        title="Meu Plano"
+        subtitle="Gerencie sua assinatura e limites do sistema"
       />
 
       <div className="p-4 lg:p-6 space-y-6 animate-fade-in">
@@ -88,7 +114,7 @@ export const SubscriptionPage: React.FC = () => {
                   <h3 className="text-white font-bold text-lg mb-1">Seu Plano Atual</h3>
                   <div className="flex items-center gap-2">
                     <span className="px-2 py-0.5 bg-primary-500/20 text-primary-400 text-xs font-bold rounded uppercase">
-                      {currentPlan?.name || currentPlan?.planName || currentPlan?.tipo || 'Desconhecido'}
+                      {currentPlan?.name || currentPlan?.planName || currentPlan?.tipo || currentPlan?.planType || 'Bronze'}
                     </span>
                     <span className="text-gray-500 text-xs text-uppercase">{currentPlan?.status || 'Ativo'}</span>
                   </div>
@@ -109,8 +135,8 @@ export const SubscriptionPage: React.FC = () => {
                   </div>
                   {currentPlan?.usage?.limit && (
                     <div className="h-2 bg-dark-500 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-primary-500 rounded-full" 
+                      <div
+                        className="h-full bg-primary-500 rounded-full"
                         style={{ width: `${Math.min(((currentPlan?.usage?.dividas || 0) / currentPlan.usage.limit) * 100, 100)}%` }}
                       />
                     </div>
@@ -133,32 +159,42 @@ export const SubscriptionPage: React.FC = () => {
           {[
             {
               id: 'FREE',
-              name: 'Bronze',
+              name: 'Gratuito',
               price: 'Grátis',
               desc: 'Essencial para controle básico.',
               features: ['Até 5 dívidas', 'WhatsApp Direto', 'Dashboard Simples'],
             },
             {
               id: 'PRO',
-              name: 'Prata',
+              name: 'Profissional',
               price: 'R$ 29,99/mês',
               desc: 'O motor do seu crescimento.',
-              features: ['Dívidas Ilimitadas', 'Relatórios CSV', 'Projeção de Caixa', 'Suporte VIP'],
+              features: ['Até 50 dívidas', 'Relatórios CSV', 'Projeção de Caixa', 'Suporte VIP'],
               tag: 'Recomendado'
             },
             {
               id: 'PREMIUM',
-              name: 'Ouro',
+              name: 'Empresarial',
               price: 'R$ 49,99/mês',
               desc: 'Para frotas e empresas.',
-              features: ['Tudo do Prata', 'Multi-usuários', 'API Externa', 'Backup em Nuvem']
+              features: ['Dívidas Ilimitadas', 'Multi-usuários', 'API Externa', 'Backup em Nuvem']
             }
           ].map((plan, i) => {
-            const isCurrent = currentPlan?.name?.toUpperCase().includes(plan.name.toUpperCase()) || 
-                              currentPlan?.tipo === plan.id;
-            
+            // Garante que só seja selecionado se não for o plano fallback
+            const isFallback = currentPlan?.name === 'Não Encontrado';
+
+            // Verificação robusta: checa tipo, name e planName em caixa alta
+            const isCurrent = !isFallback && (
+              currentPlan?.tipo === plan.id ||
+              currentPlan?.name?.toUpperCase() === plan.name.toUpperCase() ||
+              currentPlan?.planName?.toUpperCase() === plan.name.toUpperCase()
+            );
+
             return (
-              <Card key={i} className={`relative flex flex-col ${isCurrent ? 'border-primary-500/50 block' : ''}`}>
+              <Card
+                key={i}
+                className={`relative flex flex-col transition-all duration-300 ${isCurrent ? 'border-primary-500/50 block scale-105 shadow-glow z-10' : 'hover:-translate-y-2 hover:border-primary-500/30'} ${!isCurrent && 'cursor-default'}`}
+              >
                 {plan.tag && (
                   <div className="absolute -top-3 left-4 bg-primary-500 text-[10px] font-bold px-2 py-1 rounded text-white">
                     {plan.tag}
@@ -169,7 +205,7 @@ export const SubscriptionPage: React.FC = () => {
                   <div className="text-2xl font-bold text-white">{plan.price}</div>
                 </div>
                 <p className="text-gray-500 text-xs mb-6 h-8">{plan.desc}</p>
-                
+
                 <ul className="space-y-3 mb-8 flex-1">
                   {plan.features.map((f, j) => (
                     <li key={j} className="flex items-center gap-2 text-xs text-gray-300">
@@ -181,12 +217,12 @@ export const SubscriptionPage: React.FC = () => {
                   ))}
                 </ul>
 
-                <Button 
-                  variant={isCurrent ? 'secondary' : 'primary'} 
-                  className="w-full" 
+                <Button
+                  variant={isCurrent ? 'secondary' : 'primary'}
+                  className="w-full mt-auto"
                   disabled={isCurrent || isCheckoutLoading !== null}
-                  isLoading={isCheckoutLoading === plan.id}
-                  onClick={() => handleCheckout(plan.id as any)}
+                  loading={isCheckoutLoading === plan.id}
+                  onClick={() => initiateCheckout(plan.id as any)}
                 >
                   {isCurrent ? 'Seu Plano Atual' : (plan.id === 'FREE' ? 'Ativar Grátis' : 'Gerar PIX')}
                 </Button>
@@ -213,9 +249,9 @@ export const SubscriptionPage: React.FC = () => {
 
           {qrCodeData?.qrCodeBase64 && (
             <div className="bg-white p-2 rounded-xl mt-4">
-              <img 
-                src={qrCodeData.qrCodeBase64.startsWith('data:image') ? qrCodeData.qrCodeBase64 : `data:image/png;base64,${qrCodeData.qrCodeBase64}`} 
-                alt="QR Code PIX" 
+              <img
+                src={qrCodeData.qrCodeBase64.startsWith('data:image') ? qrCodeData.qrCodeBase64 : `data:image/png;base64,${qrCodeData.qrCodeBase64}`}
+                alt="QR Code PIX"
                 className="w-48 h-48 object-contain"
               />
             </div>
@@ -224,16 +260,48 @@ export const SubscriptionPage: React.FC = () => {
           <div className="w-full mt-6">
             <p className="text-white font-medium text-sm text-left mb-2">Pix Copia e Cola</p>
             <div className="flex gap-2">
-              <input 
-                type="text" 
-                value={qrCodeData?.qrCode || ''} 
-                readOnly 
+              <input
+                type="text"
+                value={qrCodeData?.qrCode || ''}
+                readOnly
                 className="flex-1 bg-dark-500 border border-dark-400 text-gray-300 text-sm rounded-lg p-2.5 outline-none"
               />
               <Button variant="primary" onClick={copyToClipboard}>
                 Copiar
               </Button>
             </div>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal de Confirmação antes de gerar o PIX */}
+      <Modal
+        isOpen={isConfirmModalOpen}
+        onClose={() => setIsConfirmModalOpen(false)}
+        title="Confirmar Pedido"
+      >
+        <div className="flex flex-col items-center text-center space-y-6">
+          <div className="w-16 h-16 bg-primary-500/20 rounded-full flex items-center justify-center">
+            <svg className="w-8 h-8 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-gray-300 text-sm mb-2">Você está prestes a gerar um código PIX para o plano:</p>
+            <h4 className="text-white text-xl font-bold">
+              {selectedPlanId === 'PRO' ? 'Profissional (PRO)' : 'Empresarial (PREMIUM)'}
+            </h4>
+          </div>
+          <p className="text-xs text-gray-500">
+            Ao clicar em "Confirmar", uma ordem de pagamento será criada no seu nome e as instruções do PIX serão geradas.
+          </p>
+          <div className="flex gap-4 w-full">
+            <Button variant="secondary" className="flex-1" onClick={() => setIsConfirmModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="primary" className="flex-1" onClick={() => handleCheckout(selectedPlanId!)}>
+              Confirmar e Gerar
+            </Button>
           </div>
         </div>
       </Modal>
