@@ -65,14 +65,14 @@ export const SubscriptionPage: React.FC = () => {
         fetchMyPlan();
       } else {
         // Nova rota: POST /api/pix/pagamento/{plano}
-        const response = await api.post(`/api/pix/pagamento/${planType}`);
+        const response = await api.post(`/subscription/checkout/${planType}`);
         console.log('DEBUG: Resposta do PIX:', response.data);
 
-        // Tenta encontrar o QR Code em diferentes nomes comuns
-        const base64 = response.data?.qrCode || response.data?.qrCodeBase64 || response.data?.image || response.data?.imagem;
+        // Tenta encontrar o QR Code em diferentes nomes comuns, priorizando o Base64/Imagem
+        const base64 = response.data?.qrCodeBase64 || response.data?.image || response.data?.imagem || response.data?.qrCode;
 
         setQrCodeData({
-          qrCode: response.data?.payload || response.data?.chavePix || 'Código PIX Indisponível',
+          qrCode: response.data?.payload || response.data?.chavePix || response.data?.qrCode || 'Código PIX Indisponível',
           qrCodeBase64: base64 || null
         });
         setIsModalOpen(true);
@@ -114,14 +114,14 @@ export const SubscriptionPage: React.FC = () => {
                   <h3 className="text-white font-bold text-lg mb-1">Seu Plano Atual</h3>
                   <div className="flex items-center gap-2">
                     <span className="px-2 py-0.5 bg-primary-500/20 text-primary-400 text-xs font-bold rounded uppercase">
-                      {currentPlan?.name || currentPlan?.planName || currentPlan?.tipo || currentPlan?.planType || 'Bronze'}
+                      {currentPlan?.planName || currentPlan?.plan || currentPlan?.tipo || currentPlan?.name || 'Bronze'}
                     </span>
-                    <span className="text-gray-500 text-xs text-uppercase">{currentPlan?.status || 'Ativo'}</span>
+                    <span className="text-gray-500 text-xs text-uppercase">{currentPlan?.active ? 'Ativo' : (currentPlan?.status || 'Inativo')}</span>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="text-gray-400 text-xs mb-1">Próxima renovação</p>
-                  <p className="text-white font-medium">{currentPlan?.renewsAt || currentPlan?.dataExpiracao || 'N/A'}</p>
+                  <p className="text-white font-medium">{currentPlan?.expiresAt || currentPlan?.renewsAt || currentPlan?.dataExpiracao || 'N/A'}</p>
                 </div>
               </div>
 
@@ -130,7 +130,7 @@ export const SubscriptionPage: React.FC = () => {
                   <div className="flex justify-between text-sm mb-2">
                     <span className="text-gray-400">Limite de Dívidas</span>
                     <span className="text-white font-medium">
-                      {currentPlan?.usage?.dividas || 0} / {currentPlan?.usage?.limit || 'Ilimitado'}
+                      {currentPlan?.usage?.dividas || 0} / {currentPlan?.usage?.limit || (currentPlan?.plan === 'FREE' || currentPlan?.tipo === 'FREE' ? 5 : 'Ilimitado')}
                     </span>
                   </div>
                   {currentPlan?.usage?.limit && (
@@ -193,7 +193,7 @@ export const SubscriptionPage: React.FC = () => {
             return (
               <Card
                 key={i}
-                className={`relative flex flex-col transition-all duration-300 ${isCurrent ? 'border-primary-500/50 block scale-105 shadow-glow z-10' : 'hover:-translate-y-2 hover:border-primary-500/30'} ${!isCurrent && 'cursor-default'}`}
+                className={`relative flex flex-col transition-all duration-300 ${isCurrent ? 'border-primary-500/50 block scale-105 shadow-glow z-10' : 'hover:-translate-y-2 hover:border-primary-500/30'} ${(!isCurrent || plan.id === 'FREE') && 'cursor-default'} ${plan.id === 'FREE' && 'opacity-60 grayscale-[0.5]'} `}
               >
                 {plan.tag && (
                   <div className="absolute -top-3 left-4 bg-primary-500 text-[10px] font-bold px-2 py-1 rounded text-white">
@@ -218,13 +218,13 @@ export const SubscriptionPage: React.FC = () => {
                 </ul>
 
                 <Button
-                  variant={isCurrent ? 'secondary' : 'primary'}
+                  variant={isCurrent || plan.id === 'FREE' ? 'secondary' : 'primary'}
                   className="w-full mt-auto"
-                  disabled={isCurrent || isCheckoutLoading !== null}
+                  disabled={isCurrent || plan.id === 'FREE' || isCheckoutLoading !== null}
                   loading={isCheckoutLoading === plan.id}
                   onClick={() => initiateCheckout(plan.id as any)}
                 >
-                  {isCurrent ? 'Seu Plano Atual' : (plan.id === 'FREE' ? 'Ativar Grátis' : 'Gerar PIX')}
+                  {isCurrent ? 'Seu Plano Atual' : (plan.id === 'FREE' ? 'Plano Padrão' : 'Gerar PIX')}
                 </Button>
               </Card>
             );

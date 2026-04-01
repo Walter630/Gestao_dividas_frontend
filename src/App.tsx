@@ -13,6 +13,7 @@ import { LandingPage } from './pages/LandingPage';
 import { SubscriptionPage } from './pages/SubscriptionPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
+import { ProfilePage } from './pages/ProfilePage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { InstallBanner } from './components/ui/InstallBanner';
 import './App.css';
@@ -43,6 +44,7 @@ function App() {
           <Route path="/clientes/:id" element={<ClientDetailPage />} />
           <Route path="/configuracoes" element={<SettingsPage />} />
           <Route path="/assinatura" element={<SubscriptionPage />} />
+          <Route path="/perfil" element={<ProfilePage />} />
         </Route>
       </Routes>
       <InstallBanner />
