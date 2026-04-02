@@ -21,7 +21,7 @@ export const ClientListPage: React.FC = () => {
   };
 
   const filtered = clientes?.filter(c => 
-    c.nome.toLowerCase().includes(q.toLowerCase()) || 
+    c.nome?.toLowerCase().includes(q.toLowerCase()) || 
     c.email?.toLowerCase().includes(q.toLowerCase()) ||
     c.telefone?.includes(q)
   );

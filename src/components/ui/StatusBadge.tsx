@@ -1,25 +1,29 @@
 import React from 'react';
-import { StatusDivida, STATUS_LABELS } from '../../db/types';
+import { StatusDivida, StatusParcela, STATUS_LABELS, STATUS_PARCELA_LABELS } from '../../db/types';
+
+type AllStatuses = StatusDivida | StatusParcela;
 
 interface StatusBadgeProps {
-  status: StatusDivida;
+  status: AllStatuses;
   size?: 'sm' | 'md' | 'lg';
 }
 
-const statusBgMap: Record<StatusDivida, string> = {
-  [StatusDivida.PENDENTE]: 'bg-amber-500/20 text-amber-400 border border-amber-500/30',
-  [StatusDivida.PAGA]: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
-  [StatusDivida.VENCIDA]: 'bg-red-500/20 text-red-400 border border-red-500/30',
-  [StatusDivida.CANCELADA]: 'bg-gray-500/20 text-gray-400 border border-gray-500/30',
-  [StatusDivida.NEGOCIANDO]: 'bg-blue-500/20 text-blue-400 border border-blue-500/30',
+const statusBgMap: Record<string, string> = {
+  PENDENTE: 'bg-amber-500/20 text-amber-400 border border-amber-500/30',
+  PAGA: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
+  VENCIDA: 'bg-red-500/20 text-red-400 border border-red-500/30',
+  ATRASADA: 'bg-red-500/20 text-red-400 border border-red-500/30',
+  CANCELADA: 'bg-gray-500/20 text-gray-400 border border-gray-500/30',
+  NEGOCIANDO: 'bg-blue-500/20 text-blue-400 border border-blue-500/30',
 };
 
-const statusDotMap: Record<StatusDivida, string> = {
-  [StatusDivida.PENDENTE]: 'bg-amber-400',
-  [StatusDivida.PAGA]: 'bg-emerald-400',
-  [StatusDivida.VENCIDA]: 'bg-red-400 animate-pulse',
-  [StatusDivida.CANCELADA]: 'bg-gray-400',
-  [StatusDivida.NEGOCIANDO]: 'bg-blue-400',
+const statusDotMap: Record<string, string> = {
+  PENDENTE: 'bg-amber-400',
+  PAGA: 'bg-emerald-400',
+  VENCIDA: 'bg-red-400 animate-pulse',
+  ATRASADA: 'bg-red-400 animate-pulse',
+  CANCELADA: 'bg-gray-400',
+  NEGOCIANDO: 'bg-blue-400',
 };
 
 const sizeMap = {
@@ -29,12 +33,14 @@ const sizeMap = {
 };
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'md' }) => {
+  const label = (STATUS_LABELS as any)[status] || (STATUS_PARCELA_LABELS as any)[status] || status;
+  
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full font-medium ${statusBgMap[status]} ${sizeMap[size]}`}
+      className={`inline-flex items-center gap-1.5 rounded-full font-medium ${statusBgMap[status] || statusBgMap.PENDENTE} ${sizeMap[size]}`}
     >
-      <span className={`w-1.5 h-1.5 rounded-full ${statusDotMap[status]}`} />
-      {STATUS_LABELS[status]}
+      <span className={`w-1.5 h-1.5 rounded-full ${statusDotMap[status] || statusDotMap.PENDENTE}`} />
+      {label}
     </span>
   );
 };

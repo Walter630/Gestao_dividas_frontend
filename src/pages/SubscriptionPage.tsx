@@ -142,6 +142,23 @@ export const SubscriptionPage: React.FC = () => {
                     </div>
                   )}
                 </div>
+
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-gray-400">Limite de Cartões</span>
+                    <span className="text-white font-medium">
+                      {currentPlan?.usage?.cards || 0} / {currentPlan?.usage?.cardLimit || (currentPlan?.plan === 'FREE' || currentPlan?.tipo === 'FREE' ? 2 : 'Ilimitado')}
+                    </span>
+                  </div>
+                  {(currentPlan?.usage?.cardLimit || (currentPlan?.plan === 'FREE' || currentPlan?.tipo === 'FREE')) && (
+                    <div className="h-2 bg-dark-500 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-emerald-500 rounded-full"
+                        style={{ width: `${Math.min(((currentPlan?.usage?.cards || 0) / (currentPlan?.usage?.cardLimit || 2)) * 100, 100)}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </Card>
 
@@ -160,24 +177,24 @@ export const SubscriptionPage: React.FC = () => {
             {
               id: 'FREE',
               name: 'Gratuito',
-              price: 'Grátis',
-              desc: 'Essencial para controle básico.',
-              features: ['Até 5 dívidas', 'WhatsApp Direto', 'Dashboard Simples'],
+              price: 'R$ 0,00',
+              desc: 'Essencial para controle básico pessoal.',
+              features: ['Até 5 dívidas ativas', 'Até 2 Cartões de Crédito', 'WhatsApp Direto (Manual)', 'Dashboard Simples'],
             },
             {
               id: 'PRO',
               name: 'Profissional',
-              price: 'R$ 29,99/mês',
-              desc: 'O motor do seu crescimento.',
-              features: ['Até 50 dívidas', 'Relatórios CSV', 'Projeção de Caixa', 'Suporte VIP'],
+              price: 'R$ 29,90/mês',
+              desc: 'O motor do seu crescimento financeiro.',
+              features: ['Dívidas Ilimitadas', 'Cartões Ilimitados', 'Relatórios CSV/PDF', 'Projeção de Caixa', 'Suporte Prioritário'],
               tag: 'Recomendado'
             },
             {
               id: 'PREMIUM',
-              name: 'Empresarial',
-              price: 'R$ 49,99/mês',
-              desc: 'Para frotas e empresas.',
-              features: ['Dívidas Ilimitadas', 'Multi-usuários', 'API Externa', 'Backup em Nuvem']
+              name: 'Business',
+              price: 'R$ 59,90/mês',
+              desc: 'Gestão completa para pequenas empresas.',
+              features: ['Tudo do PRO', 'Multi-usuários (Até 5)', 'Alertas via WhatsApp', 'Logo da Empresa em Relatórios']
             }
           ].map((plan, i) => {
             // Garante que só seja selecionado se não for o plano fallback

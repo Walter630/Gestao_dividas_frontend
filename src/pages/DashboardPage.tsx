@@ -7,6 +7,7 @@ import { DebtsByStatusChart } from '../components/dashboard/DebtsByStatusChart';
 import { MonthlyTrendChart } from '../components/dashboard/MonthlyTrendChart';
 import { UpcomingDueSoon } from '../components/dashboard/UpcomingDueSoon';
 import { CashflowChart } from '../components/dashboard/CashflowChart';
+import { CardSummary } from '../components/dashboard/CardSummary';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { exportDividasCSV } from '../services/exportService';
@@ -21,7 +22,7 @@ export const DashboardPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <Button variant="secondary" size="md" onClick={exportDividasCSV}>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003-3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
               </svg>
               Exportar
             </Button>
@@ -40,6 +41,11 @@ export const DashboardPage: React.FC = () => {
       <div className="p-4 lg:p-6 space-y-6 animate-fade-in">
         {/* Stats */}
         <StatsBar />
+
+        {/* Card Summary Section */}
+        <div className="max-w-md">
+          <CardSummary />
+        </div>
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

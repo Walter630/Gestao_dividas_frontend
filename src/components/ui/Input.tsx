@@ -143,3 +143,44 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
 
 Textarea.displayName = 'Textarea';
 
+export const Checkbox = forwardRef<HTMLInputElement, InputProps>(
+  ({ label, className = '', id, ...props }, ref) => {
+    const checkId = id || (typeof label === 'string' ? label.toLowerCase().replace(/\s/g, '-') : undefined);
+
+    return (
+      <div className="flex items-center gap-3">
+        <div className="relative flex items-center">
+          <input
+            type="checkbox"
+            ref={ref}
+            id={checkId}
+            className={`
+              peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-dark-300
+              bg-dark-500 transition-all checked:border-primary-500 checked:bg-primary-500
+              focus:outline-none focus:ring-2 focus:ring-primary-500/30
+              ${className}
+            `}
+            {...props}
+          />
+          <svg
+            className="absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100 transition-opacity"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={3}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        {label && (
+          <label htmlFor={checkId} className="text-sm font-medium text-gray-300 cursor-pointer select-none">
+            {label}
+          </label>
+        )}
+      </div>
+    );
+  }
+);
+
+Checkbox.displayName = 'Checkbox';
+

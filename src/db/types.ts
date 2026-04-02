@@ -6,6 +6,18 @@ export enum StatusDivida {
   NEGOCIANDO = 'NEGOCIANDO',
 }
 
+export enum StatusCompra {
+  ATIVA = 'ATIVA',
+  QUITADA = 'QUITADA',
+  CANCELADA = 'CANCELADA',
+}
+
+export enum StatusParcela {
+  PENDENTE = 'PENDENTE',
+  PAGA = 'PAGA',
+  ATRASADA = 'ATRASADA',
+}
+
 export enum TaxType {
   SIMPLES = 'SIMPLES',
   COMPOSTA = 'COMPOSTA',
@@ -35,6 +47,7 @@ export interface Configuracoes {
   taxaPadrao: number;
   tipoJurosPadrao: TaxType;
   paymentModePadrao: PaymentMode;
+  notificacoesPermitidas: boolean;
   whatsappTemplate: string;
 }
 
@@ -66,6 +79,43 @@ export interface Pagamento {
   tipo: PagamentoTipo;
 }
 
+// Novos Tipos para Cartões e Parcelamentos
+export interface CartaoCredito {
+  id?: string;
+  nome: string;
+  limite: number;
+  diaFechamento: number;
+  diaVencimento: number;
+  ativo: boolean;
+  createAt: string;
+}
+
+export interface CompraParcelada {
+  id?: string;
+  cartaoId: string;
+  loja: string;
+  descricao: string;
+  categoria?: string;
+  valorTotal: number;
+  quantidadeParcelas: number;
+  dataCompra: string;
+  possuiJuros: boolean;
+  taxaJuros?: number;
+  status: StatusCompra;
+  createAt: string;
+}
+
+export interface Parcela {
+  id?: string;
+  compraId: string;
+  numeroParcela: number; // ex: 1 de 10
+  valor: number;
+  dataVencimento: string;
+  status: StatusParcela;
+  dataPagamento?: string;
+  valorPago?: number;
+}
+
 export const STATUS_LABELS: Record<StatusDivida, string> = {
   [StatusDivida.PENDENTE]: 'Pendente',
   [StatusDivida.PAGA]: 'Paga',
@@ -79,6 +129,12 @@ export const TAX_TYPE_LABELS: Record<TaxType, string> = {
   [TaxType.COMPOSTA]: 'Juros Composta',
   [TaxType.JUROS_FIXO]: 'Juros Fixo (Mensal)',
   [TaxType.SEM_JUROS]: 'Sem Juros',
+};
+
+export const STATUS_PARCELA_LABELS: Record<StatusParcela, string> = {
+  [StatusParcela.PENDENTE]: 'Pendente',
+  [StatusParcela.PAGA]: 'Paga',
+  [StatusParcela.ATRASADA]: 'Atrasada',
 };
 
 export const PAYMENT_MODE_LABELS: Record<PaymentMode, string> = {

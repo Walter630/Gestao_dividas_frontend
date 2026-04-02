@@ -16,12 +16,12 @@ const navItems = [
     ),
   },
   {
-    path: '/dividas',
-    label: 'Dívidas',
+    path: '/cartoes',
+    label: 'Cartões',
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+          d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
         />
       </svg>
     ),
@@ -32,6 +32,7 @@ const navItems = [
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+          d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 3a9 9 0 11-18 0 9 9 0 0118 0z"
         />
       </svg>
     ),
@@ -132,12 +133,13 @@ export const Sidebar: React.FC = () => {
             const isActiveNew = item.path === '/dividas/nova' && location.pathname === '/dividas/nova';
             const isActiveDividas = item.path === '/dividas' && location.pathname === '/dividas';
             const isActiveDash = item.path === '/dashboard' && location.pathname === '/dashboard';
+            const isActiveCartoes = item.path === '/cartoes' && location.pathname.startsWith('/cartoes');
             const isActiveClientes = item.path === '/clientes' && location.pathname.startsWith('/clientes');
             const isActiveConfig = item.path === '/configuracoes' && location.pathname.startsWith('/configuracoes');
             const isActiveAssinatura = item.path === '/assinatura' && location.pathname.startsWith('/assinatura');
             const isActivePerfil = item.path === '/perfil' && location.pathname.startsWith('/perfil');
 
-            const active = isActiveNew || isActiveDividas || isActiveDash || isActiveClientes || isActiveConfig || isActiveAssinatura || isActivePerfil;
+            const active = isActiveNew || isActiveDividas || isActiveDash || isActiveCartoes || isActiveClientes || isActiveConfig || isActiveAssinatura || isActivePerfil;
 
             return (
               <Link

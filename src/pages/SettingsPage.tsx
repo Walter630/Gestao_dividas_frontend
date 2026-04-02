@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { Layout } from '../components/layout/Layout';
 import { Topbar } from '../components/layout/Topbar';
 import { useConfiguracoes, updateConfiguracoes } from '../db/hooks/useConfiguracoes';
-import { Input, Select, Textarea } from '../components/ui/Input';
+import { Input, Select, Textarea, Checkbox } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { TaxType, TAX_TYPE_LABELS, PaymentMode, PAYMENT_MODE_LABELS } from '../db/types';
 import { toast } from 'sonner';
@@ -14,6 +14,7 @@ interface SettingsForm {
   taxaPadrao: string;
   paymentModePadrao: string;
   whatsappTemplate: string;
+  notificacoesPermitidas: boolean;
 }
 
 const taxTypeOptions = Object.entries(TAX_TYPE_LABELS).map(([value, label]) => ({ value, label }));
@@ -31,6 +32,7 @@ export const SettingsPage: React.FC = () => {
         taxaPadrao: String(config.taxaPadrao),
         paymentModePadrao: config.paymentModePadrao || PaymentMode.PARCELADO,
         whatsappTemplate: config.whatsappTemplate,
+        notificacoesPermitidas: config.notificacoesPermitidas || false,
       });
     }
   }, [config, reset]);
@@ -45,6 +47,7 @@ export const SettingsPage: React.FC = () => {
         taxaPadrao: parseFloat(data.taxaPadrao) || 0,
         paymentModePadrao: data.paymentModePadrao as PaymentMode,
         whatsappTemplate: data.whatsappTemplate,
+        notificacoesPermitidas: data.notificacoesPermitidas,
       });
       toast.success('Configurações salvas com sucesso!');
     } catch (e) {
@@ -156,6 +159,22 @@ export const SettingsPage: React.FC = () => {
                 <li><code className="text-primary-300 bg-primary-900/30 px-1 rounded">{'{dataVencimento}'}</code> - Data combinada via sistema</li>
               </ul>
             </div>
+          </div>
+
+          <div className="pt-4 border-t border-dark-400">
+            <h3 className="text-white font-bold text-base mb-4 flex items-center gap-2">
+              <svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              Notificações e Alertas
+            </h3>
+            <Checkbox
+              label="Permitir notificações do sistema (Atrasos e Fechamento de Faturas)"
+              {...register('notificacoesPermitidas')}
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              Se ativado, o sistema enviará lembretes no navegador sobre dívidas vencendo e faturas de cartão.
+            </p>
           </div>
 
           <div className="pt-4">
