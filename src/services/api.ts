@@ -39,18 +39,18 @@ api.interceptors.response.use(
 
       if (refreshToken) {
         try {
-          const response = await axios.post(`${api.defaults.baseURL}/auth/refreshToken`, refreshToken, {
-            headers: {
-              'Content-Type': 'text/plain', // Como dito, "refreshToken (texto puro)"
-            }
+          // Envia o refreshToken como JSON, igual ao formato retornado pelo login
+          const response = await axios.post(`${api.defaults.baseURL}/auth/refresh`, {
+            refreshToken,
           });
 
-          const newToken = response.data; // Ou a forma correta que o backend retornar
-          // Atualiza o Zustand com o novo token
-          useAuthStore.getState().setToken(newToken);
+          const { accessToken, refreshToken: newRefreshToken } = response.data;
 
-          // Refaz a requisição original com o novo token
-          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          // Atualiza o Zustand com os dois novos tokens
+          useAuthStore.getState().setToken(accessToken, newRefreshToken);
+
+          // Refaz a requisição original com o novo accessToken
+          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
           return api(originalRequest);
         } catch (refreshError) {
           // Se falhar o refresh, desloga o usuário

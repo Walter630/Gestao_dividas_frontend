@@ -7,21 +7,22 @@ import { Button } from '../components/ui/Button';
 import { toast } from 'sonner';
 
 export const ClientListPage: React.FC = () => {
-  const clientes = useAllClientes();
+  const { clientes, refetch } = useAllClientes();
   const [q, setQ] = useState('');
 
   const handleDelete = async (id: string) => {
     if (!confirm('Deseja realmente excluir este cliente?')) return;
     try {
       await deleteCliente(id);
+      await refetch();
       toast.success('Cliente excluído com sucesso.');
     } catch (e: any) {
       toast.error(e.message || 'Erro ao excluir.');
     }
   };
 
-  const filtered = clientes?.filter(c => 
-    c.nome?.toLowerCase().includes(q.toLowerCase()) || 
+  const filtered = clientes?.filter(c =>
+    c.nome?.toLowerCase().includes(q.toLowerCase()) ||
     c.email?.toLowerCase().includes(q.toLowerCase()) ||
     c.telefone?.includes(q)
   );
@@ -69,7 +70,7 @@ export const ClientListPage: React.FC = () => {
                 <div className="flex justify-between items-start mb-3">
                   <div>
                     <h3 className="text-white font-bold">{c.nome}</h3>
-                    {c.documento && <p className="text-xs text-gray-500">Doc: {c.documento}</p>}
+                    {c.cpf && <p className="text-xs text-gray-500">Doc: {c.cpf}</p>}
                   </div>
                 </div>
                 {c.email && (

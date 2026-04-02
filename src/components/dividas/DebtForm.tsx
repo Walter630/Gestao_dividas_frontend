@@ -50,7 +50,7 @@ export const DebtForm: React.FC<DebtFormProps> = ({
   loading,
 }) => {
   const [isQuickAdd, setIsQuickAdd] = React.useState(false);
-  const clientes = useAllClientes();
+  const { clientes } = useAllClientes();
   const clientOptions = clientes?.map((c) => ({ value: c.id!, label: c.nome })) || [];
 
   const {

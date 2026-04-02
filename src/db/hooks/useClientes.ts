@@ -2,14 +2,21 @@ import { useEffect, useState, useCallback } from 'react';
 import { api } from '../../services/api';
 import type { Cliente } from '../types';
 
+// Mapeia o objeto retornado pelo backend (que usa 'name') para o tipo do front (que usa 'nome')
+function mapBackendToCliente(c: any): Cliente {
+  return {
+    ...c,
+    nome: c.nome ?? c.name, // backend retorna 'name', front usa 'nome'
+  };
+}
+
 export function useAllClientes() {
   const [clientes, setClientes] = useState<Cliente[] | undefined>(undefined);
 
   const fetchClientes = useCallback(async () => {
     try {
       const response = await api.get('/client');
-      // Assume array from backend
-      setClientes(response.data);
+      setClientes((response.data as any[]).map(mapBackendToCliente));
     } catch (error) {
       console.error('Failed to fetch clientes', error);
       setClientes([]);
@@ -20,7 +27,7 @@ export function useAllClientes() {
     fetchClientes();
   }, [fetchClientes]);
 
-  return clientes; // Same return signature as useLiveQuery
+  return { clientes, refetch: fetchClientes };
 }
 
 // O backend criado parece não ter uma rota GET /client/{id}, 
@@ -33,7 +40,7 @@ export function useClienteById(id?: string) {
     try {
       // Como não foi listada rota de get by id por Client, a gente pega da listagem
       const response = await api.get('/client');
-      const found = response.data.find((c: Cliente) => c.id === id); // Assumindo campo "id" retornado
+      const found = (response.data as any[]).map(mapBackendToCliente).find((c: Cliente) => c.id === id);
       setCliente(found);
     } catch (error) {
       console.error('Failed to fetch cliente by id', error);
@@ -51,14 +58,16 @@ export function useClienteById(id?: string) {
 export async function createCliente(data: Omit<Cliente, 'id' | 'createAt'>) {
   // Rota POST /client espera: name, email, cpf, telefone
   const payload = {
-    name: data.nome,    // Mapeando nomes se o Frontend usasse "nome" e backend "name"
-    email: data.email,
-    cpf: data.cpf,
-    telefone: data.telefone
+    name: data.nome,
+    email: data.email || '',
+    cpf: data.cpf || data.documento || '',  // documento é o nome do campo no front
+    telefone: data.telefone || ''
   };
-  
+
+  console.log('Enviando payload:', payload);
+
   const response = await api.post('/client', payload);
-  return response.data?.id || response.data?.name; // Retorna algo como ID
+  return response.data?.id || response.data?.name;
 }
 
 export async function updateCliente(id: string, data: Partial<Omit<Cliente, 'id' | 'createAt'>>) {
@@ -68,5 +77,5 @@ export async function updateCliente(id: string, data: Partial<Omit<Cliente, 'id'
 
 export async function deleteCliente(id: string) {
   // O backend não possui rota DELETE /client/{id}
-  console.warn('Backend não tem rota deleteCliente. Pulando.');
+  await api.delete(`/client/${id}`);
 }

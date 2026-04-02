@@ -13,7 +13,7 @@ export const ClientDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const cliente = useClienteById(id);
-  
+
   const allDividas = useAllDividas();
   const dividas = React.useMemo(() => {
     if (!allDividas || !id) return undefined;
@@ -73,7 +73,7 @@ export const ClientDetailPage: React.FC = () => {
             <div className="flex flex-wrap gap-4 text-sm text-gray-400">
               {cliente.email && <span className="flex items-center gap-1.5">✉️ {cliente.email}</span>}
               {cliente.telefone && <span className="flex items-center gap-1.5">📱 {cliente.telefone}</span>}
-              {cliente.documento && <span className="flex items-center gap-1.5">💳 {cliente.documento}</span>}
+              {cliente.cpf && <span className="flex items-center gap-1.5">💳 {cliente.cpf}</span>}
             </div>
           </div>
           <Link to={`/dividas/nova?cliente=${cliente.id}`}>

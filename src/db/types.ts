@@ -37,7 +37,7 @@ export interface Cliente {
   nome: string;
   email?: string;
   telefone?: string;
-  documento?: string;
+  cpf?: string;
   createAt: string;
 }
 
@@ -82,12 +82,14 @@ export interface Pagamento {
 // Novos Tipos para Cartões e Parcelamentos
 export interface CartaoCredito {
   id?: string;
-  nome: string;
-  limite: number;
-  diaFechamento: number;
-  diaVencimento: number;
-  ativo: boolean;
-  createAt: string;
+  name: string;           // backend: name
+  limit: number;          // backend: limit
+  limitDisponivel: number; // backend: limitDisponivel
+  diaFechamento: number;  // backend: diaFechamento (1-31)
+  diaVencimento: number;  // backend: diaVencimento (1-31)
+  ativo?: boolean;
+  userId?: string;
+  createAt?: string;
 }
 
 export interface CompraParcelada {
