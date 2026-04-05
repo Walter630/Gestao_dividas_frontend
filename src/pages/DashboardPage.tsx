@@ -3,11 +3,9 @@ import { Link } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { Topbar } from '../components/layout/Topbar';
 import { StatsBar } from '../components/dashboard/StatsBar';
-import { DebtsByStatusChart } from '../components/dashboard/DebtsByStatusChart';
-import { MonthlyTrendChart } from '../components/dashboard/MonthlyTrendChart';
+import { EvolutionChart } from '../components/dashboard/EvolutionChart';
 import { UpcomingDueSoon } from '../components/dashboard/UpcomingDueSoon';
-import { CashflowChart } from '../components/dashboard/CashflowChart';
-import { CardSummary } from '../components/dashboard/CardSummary';
+import { DebtTable } from '../components/dashboard/DebtTable';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { exportDividasCSV } from '../services/exportService';
@@ -39,59 +37,39 @@ export const DashboardPage: React.FC = () => {
       />
 
       <div className="p-4 lg:p-6 space-y-6 animate-fade-in">
-        {/* Stats */}
+
+        {/* Stats — mantém os 6 cards originais */}
         <StatsBar />
 
-        {/* Card Summary Section */}
-        <div className="max-w-md">
-          <CardSummary />
-        </div>
+        {/* Evolução + Próximos Vencimentos */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
 
-        {/* Charts Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <h2 className="text-white font-semibold text-sm mb-4 flex items-center gap-2">
-              <span className="w-1.5 h-4 bg-primary-500 rounded-full" />
-              Dívidas por Status
-            </h2>
-            <DebtsByStatusChart />
-          </Card>
-
-          <Card>
-            <h2 className="text-white font-semibold text-sm mb-4 flex items-center gap-2">
-              <span className="w-1.5 h-4 bg-emerald-500 rounded-full" />
-              Tendência Mensal (6 meses)
-            </h2>
-            <div className="flex items-center gap-4 mb-3">
-              <span className="flex items-center gap-1.5 text-xs text-gray-400">
-                <span className="w-2.5 h-2.5 bg-primary-500 rounded-sm" />
-                Registradas
-              </span>
-              <span className="flex items-center gap-1.5 text-xs text-gray-400">
-                <span className="w-2.5 h-2.5 bg-emerald-500 rounded-sm" />
-                Pagas
-              </span>
+          {/* Gráfico de Evolução (lado maior) */}
+          <Card className="lg:col-span-3">
+            <div className="mb-4">
+              <h2 className="text-white font-semibold text-sm">Evolução</h2>
+              <p className="text-gray-500 text-xs mt-0.5">Dívidas vs. pagamentos nos últimos 6 meses</p>
             </div>
-            <MonthlyTrendChart />
+            <EvolutionChart />
           </Card>
 
+          {/* Próximos Vencimentos (lado menor) */}
           <Card className="lg:col-span-2">
-            <h2 className="text-white font-semibold text-sm mb-2 flex items-center gap-2">
-              <span className="w-1.5 h-4 bg-blue-500 rounded-full" />
-              Projeção de Fluxo de Caixa Futuro
-            </h2>
-            <p className="text-xs text-gray-400 mb-4">Expectativa de recebimentos baseada em dívidas ativas (pendentes e vencidas) agendadas para os próximos 4 meses.</p>
-            <CashflowChart />
+            <div className="mb-4">
+              <h2 className="text-white font-semibold text-sm">Próximos Vencimentos</h2>
+              <p className="text-gray-500 text-xs mt-0.5">Dívidas com vencimento próximo</p>
+            </div>
+            <UpcomingDueSoon />
           </Card>
         </div>
 
-        {/* Upcoming Dues */}
+        {/* Tabela de Dívidas */}
         <Card>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-white font-semibold text-sm flex items-center gap-2">
-              <span className="w-1.5 h-4 bg-amber-500 rounded-full" />
-              Vencendo em breve (7 dias)
-            </h2>
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="text-white font-semibold text-sm">Dívidas</h2>
+              <p className="text-gray-500 text-xs mt-0.5">Gerenciando todas as suas dívidas</p>
+            </div>
             <Link to="/dividas">
               <Button variant="ghost" size="sm" className="text-primary-400">
                 Ver todas
@@ -101,10 +79,10 @@ export const DashboardPage: React.FC = () => {
               </Button>
             </Link>
           </div>
-          <UpcomingDueSoon />
+          <DebtTable />
         </Card>
+
       </div>
     </Layout>
   );
 };
-

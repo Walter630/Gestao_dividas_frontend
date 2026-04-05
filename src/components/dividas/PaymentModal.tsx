@@ -86,7 +86,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     : 'bg-dark-500 border-dark-300/30 text-gray-400 hover:border-dark-300/60'
                 }`}
               >
-                💰 Pagar Juros
+                💰 Pagar Juros Pendentes
                 {suggestedInterest > 0 && (
                   <span className="block text-xs mt-0.5 opacity-70">
                     {formatCurrency(suggestedInterest)}

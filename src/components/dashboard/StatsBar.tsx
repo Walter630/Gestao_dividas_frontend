@@ -12,6 +12,17 @@ export const StatsBar: React.FC = () => {
       if (mounted) setStats(data);
     }).catch(e => {
       console.error('Failed to get stats', e);
+      // Em caso de erro 403/401, pode ser necessário fazer login
+      if (e.response?.status === 403 || e.response?.status === 401) {
+        console.warn('Usuário não autenticado. Faça login para ver as estatísticas.');
+      }
+      // Define stats vazios para não quebrar a UI
+      if (mounted) setStats({
+        total: 0, totalValor: 0, totalValorAtual: 0, totalEmprestado: 0,
+        jurosAcumulados: 0, jurosPendentes: 0, pendentes: 0, pagas: 0,
+        vencidas: 0, canceladas: 0, negociando: 0, valorPendente: 0,
+        valorPago: 0, valorVencido: 0,
+      });
     });
     return () => { mounted = false; };
   }, []);

@@ -7,9 +7,13 @@ import { Modal } from '../components/ui/Modal';
 import { api } from '../services/api';
 import { toast } from 'sonner';
 
+import { useAllDividas } from '../db/hooks/useDividas';
+
 export const SubscriptionPage: React.FC = () => {
   const [currentPlan, setCurrentPlan] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const allDividas = useAllDividas();
+  const _totalDividas = allDividas ? allDividas.length : 0;
 
   // States para o checkout e Modal do QR Code Pier
   const [isCheckoutLoading, setIsCheckoutLoading] = useState<string | null>(null);
@@ -25,10 +29,7 @@ export const SubscriptionPage: React.FC = () => {
       setCurrentPlan(response.data);
     } catch (error: any) {
       console.error('Falha ao buscar plano', error);
-      if (error.response?.status === 404) {
-        toast.error('Erro 404: Rota de buscar plano não encontrada no servidor.', { id: 'plan-404' });
-      }
-      // Fallback para o plano Bronze (FREE) caso não encontre ou dê erro
+      // Fallback para o plano Bronze (FREE)
       setCurrentPlan({
         name: 'Bronze',
         tipo: 'FREE',
@@ -48,9 +49,9 @@ export const SubscriptionPage: React.FC = () => {
   const initiateCheckout = (planId: 'FREE' | 'PRO' | 'PREMIUM') => {
     setSelectedPlanId(planId);
     if (planId === 'FREE') {
-      handleCheckout(planId); // Ativa grátis direto
+      handleCheckout(planId);
     } else {
-      setIsConfirmModalOpen(true); // Pede confirmação para os pagos
+      setIsConfirmModalOpen(true);
     }
   };
 
@@ -59,18 +60,11 @@ export const SubscriptionPage: React.FC = () => {
     setIsCheckoutLoading(planType);
     try {
       if (planType === 'FREE') {
-        // Opcional: Se houver uma rota específica para 'ativar grátis', chame-a aqui.
-        // Se não, apenas mostramos sucesso e atualizamos localmente.
         toast.success('Plano Gratuito ativado com sucesso!');
         fetchMyPlan();
       } else {
-        // Nova rota: POST /api/pix/pagamento/{plano}
         const response = await api.post(`/subscription/checkout/${planType}`);
-        console.log('DEBUG: Resposta do PIX:', response.data);
-
-        // Tenta encontrar o QR Code em diferentes nomes comuns, priorizando o Base64/Imagem
         const base64 = response.data?.qrCodeBase64 || response.data?.image || response.data?.imagem || response.data?.qrCode;
-
         setQrCodeData({
           qrCode: response.data?.payload || response.data?.chavePix || response.data?.qrCode || 'Código PIX Indisponível',
           qrCodeBase64: base64 || null
@@ -78,7 +72,6 @@ export const SubscriptionPage: React.FC = () => {
         setIsModalOpen(true);
       }
     } catch (error: any) {
-      console.error('Erro no checkout', error);
       if (error.response?.status === 404) {
         toast.error(`Erro 404: A rota para assinar o plano ${planType} não existe no backend!`, { duration: 5000 });
       } else {
@@ -130,14 +123,14 @@ export const SubscriptionPage: React.FC = () => {
                   <div className="flex justify-between text-sm mb-2">
                     <span className="text-gray-400">Limite de Dívidas</span>
                     <span className="text-white font-medium">
-                      {currentPlan?.usage?.dividas || 0} / {currentPlan?.usage?.limit || (currentPlan?.plan === 'FREE' || currentPlan?.tipo === 'FREE' ? 5 : 'Ilimitado')}
+                      {currentPlan?.usage?.dividas || _totalDividas} / {currentPlan?.usage?.limit || (currentPlan?.plan === 'FREE' || currentPlan?.tipo === 'FREE' ? 5 : 'Ilimitado')}
                     </span>
                   </div>
-                  {currentPlan?.usage?.limit && (
+                  {(currentPlan?.usage?.limit || currentPlan?.plan === 'FREE' || currentPlan?.tipo === 'FREE') && (
                     <div className="h-2 bg-dark-500 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-primary-500 rounded-full"
-                        style={{ width: `${Math.min(((currentPlan?.usage?.dividas || 0) / currentPlan.usage.limit) * 100, 100)}%` }}
+                        style={{ width: `${Math.min((((currentPlan?.usage?.dividas || _totalDividas) / (currentPlan?.usage?.limit || 5)) * 100), 100)}%` }}
                       />
                     </div>
                   )}

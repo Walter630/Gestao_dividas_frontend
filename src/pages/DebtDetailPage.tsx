@@ -7,7 +7,7 @@ import { Button } from '../components/ui/Button';
 import { ConfirmModal } from '../components/ui/Modal';
 import { Card } from '../components/ui/Card';
 import { PaymentModal } from '../components/dividas/PaymentModal';
-import { useDividaById, deleteDivida, updateDivida, addPagamento } from '../db/hooks/useDividas';
+import { useDividaById, deleteDivida, updateDivida, addPagamento, useDividaBreakdown } from '../db/hooks/useDividas';
 import { useConfiguracoes } from '../db/hooks/useConfiguracoes';
 import { useClienteById } from '../db/hooks/useClientes';
 import { formatCurrency, formatDate, formatDateTime, calculateDebtBreakdown, calculateMonthlyInterest } from '../services/taxCalculator';
@@ -25,6 +25,7 @@ export const DebtDetailPage: React.FC = () => {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const navigate = useNavigate();
   const divida = useDividaById(id);
+  const { breakdown: backendBreakdown, loading: breakdownLoading, refresh: refreshBreakdown } = useDividaBreakdown(id);
   const config = useConfiguracoes();
   const cliente = useClienteById(divida?.clienteId);
 
@@ -46,7 +47,7 @@ export const DebtDetailPage: React.FC = () => {
     if (!id) return;
     setStatusLoading(true);
     try {
-      await updateDivida(id, { status: StatusDivida.PAGA });
+      await updateDivida(id, { status: StatusDivida.PAGO });
       toast.success('Dívida marcada como paga!');
     } catch (e) {
       toast.error('Erro ao atualizar a dívida');
@@ -68,6 +69,7 @@ export const DebtDetailPage: React.FC = () => {
             : 'Pagamento registrado com sucesso!'
       );
       setPaymentOpen(false);
+      refreshBreakdown(); // Refresh breakdown after payment
     } catch (e) {
       toast.error('Erro ao registrar o pagamento');
     } finally {
@@ -109,16 +111,18 @@ export const DebtDetailPage: React.FC = () => {
   const isOverdue = daysUntilDue < 0;
   const isDueSoon = daysUntilDue >= 0 && daysUntilDue <= 3;
   
-  // Calculate full breakdown
+  // Calculate full breakdown (use backend if available, fallback to local)
   const paymentMode = divida.paymentMode || PaymentMode.PARCELADO;
-  const breakdown = calculateDebtBreakdown(
+  const localBreakdown = calculateDebtBreakdown(
     divida.valor,
     divida.taxType,
     divida.taxValue,
-    divida.dataVencimento,
+    divida.createAt, 
     paymentMode,
     divida.pagamentos || []
   );
+  
+  const breakdown = backendBreakdown || localBreakdown;
   
   const monthlyInterest = calculateMonthlyInterest(divida.valor, divida.taxType, divida.taxValue);
   const isJurosMensal = paymentMode === PaymentMode.JUROS_MENSAL;
@@ -202,7 +206,7 @@ export const DebtDetailPage: React.FC = () => {
                 }`}>
                   {PAYMENT_MODE_LABELS[paymentMode]}
                 </span>
-                {isOverdue && divida.status !== StatusDivida.PAGA && (
+                {isOverdue && divida.status !== StatusDivida.PAGO && (
                   <span className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-1 rounded-lg animate-pulse">
                     ⚠ Vencida
                   </span>
@@ -283,10 +287,10 @@ export const DebtDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              {isJurosMensal && monthlyInterest > 0 && (
+              {isJurosMensal && breakdown.jurosPendentes > 0 && (
                 <div className="mt-3 p-3 bg-dark-500/50 rounded-lg border border-dark-300/30">
                   <p className="text-xs text-gray-400">
-                    💡 Juros estimados do mês: <span className="text-amber-400 font-semibold">{formatCurrency(monthlyInterest)}</span>
+                    💡 Juros pendentes: <span className="text-amber-400 font-semibold">{formatCurrency(breakdown.jurosPendentes)}</span>
                   </p>
                 </div>
               )}
@@ -357,7 +361,7 @@ export const DebtDetailPage: React.FC = () => {
         )}
 
         {/* Quick Actions */}
-        {divida.status !== StatusDivida.PAGA && divida.status !== StatusDivida.CANCELADA && (
+        {divida.status !== StatusDivida.PAGO && divida.status !== StatusDivida.CANCELADA && (
           <Card>
             <h3 className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-3">Ações Rápidas</h3>
             <div className="flex flex-wrap gap-3">
@@ -416,7 +420,7 @@ export const DebtDetailPage: React.FC = () => {
         onSubmit={handlePayment}
         loading={paymentLoading}
         paymentMode={paymentMode}
-        suggestedInterest={breakdown.jurosPendentes > 0 ? breakdown.jurosPendentes : monthlyInterest}
+        suggestedInterest={breakdown.jurosPendentes}
         principalBalance={breakdown.saldoPrincipal}
       />
     </Layout>

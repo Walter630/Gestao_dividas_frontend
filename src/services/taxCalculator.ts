@@ -1,9 +1,10 @@
 import { TaxType, PaymentMode } from '../db/types';
 import type { PagamentoTipo } from '../db/types';
-import { differenceInDays, differenceInMonths } from 'date-fns';
+import { differenceInMonths, differenceInDays } from 'date-fns';
 
 /**
  * Internal: Calculates the interest amount on a principal over a time period for a given tax type.
+ * Synchronized with Backend Java logic: valueOriginal * taxRate * months.
  */
 function calculateInterestChunk(
   principal: number,
@@ -15,23 +16,21 @@ function calculateInterestChunk(
   if (principal <= 0) return 0;
   if (startDate >= endDate) return 0;
 
+  // Utiliza a diferença em dias e divide por 30 para permitir juros proporcionais (quebrados)
+  const days = differenceInDays(endDate, startDate);
+  const months = Math.max(0, days / 30.0);
+  
   switch (taxType) {
     case TaxType.SEM_JUROS:
       return 0;
-    case TaxType.JUROS_FIXO: {
-      const days = differenceInDays(endDate, startDate);
-      const months = days / 30;
+    case TaxType.JUROS_FIXO:
+    case TaxType.SIMPLES: {
+      // principal * rate * months
       return principal * taxRate * months;
     }
-    case TaxType.SIMPLES: {
-      const days = differenceInDays(endDate, startDate);
-      const years = days / 365;
-      return principal * taxRate * years;
-    }
     case TaxType.COMPOSTA: {
-      const days = differenceInDays(endDate, startDate);
-      const fractionalMonths = days / (365.25 / 12);
-      return principal * Math.pow(1 + taxRate, fractionalMonths) - principal;
+      // principal * (1 + rate)^months - principal
+      return principal * Math.pow(1 + taxRate, months) - principal;
     }
     default:
       return 0;
@@ -64,21 +63,20 @@ export function calculateDebtBreakdown(
   valor: number,
   taxType: TaxType,
   taxValue: number,
-  dataVencimento: string,
+  dataCriacao: string,
   paymentMode: PaymentMode,
   pagamentos: { data: string; valor: number; tipo?: PagamentoTipo }[] = []
 ): DebtBreakdown {
   const now = new Date();
   const taxRate = taxValue / 100;
+  const birthDate = new Date(dataCriacao);
 
   const sortedPayments = [...pagamentos]
     .map(p => ({ ...p, date: new Date(p.data), tipo: p.tipo || 'parcela' as PagamentoTipo }))
     .sort((a, b) => a.date.getTime() - b.date.getTime());
 
   if (paymentMode === PaymentMode.JUROS_MENSAL) {
-    // JUROS_MENSAL: Interest is always calculated on the ORIGINAL principal.
-    // Interest payments do NOT reduce the principal.
-    // Principal is paid in full when "quitacao" is done.
+    // Interest is calculated ONCE from birthDate to now on ORIGINAL valor
     let totalJurosPagos = 0;
     let totalPrincipalPago = 0;
 
@@ -86,22 +84,13 @@ export function calculateDebtBreakdown(
       if (p.tipo === 'juros') {
         totalJurosPagos += p.valor;
       } else {
-        // parcela or quitacao
         totalPrincipalPago += p.valor;
       }
     }
 
-    const saldoPrincipal = Math.max(0, valor - totalPrincipalPago);
-    const dueDate = new Date(dataVencimento);
-    const startDate = dueDate < now ? dueDate : now;
-    const endDate = now;
-
-    // Calculate total interest from due date to now on ORIGINAL valor
-    const jurosAcumulados = startDate < endDate
-      ? calculateInterestChunk(valor, taxType, taxRate, startDate, endDate)
-      : 0;
-    
+    const jurosAcumulados = calculateInterestChunk(valor, taxType, taxRate, birthDate, now);
     const jurosPendentes = Math.max(0, jurosAcumulados - totalJurosPagos);
+    const saldoPrincipal = Math.max(0, valor - totalPrincipalPago);
     const totalPago = totalJurosPagos + totalPrincipalPago;
     const valorAtual = saldoPrincipal + jurosPendentes;
 
@@ -116,20 +105,18 @@ export function calculateDebtBreakdown(
       valorAtual,
     };
   } else {
-    // PARCELADO: Amortization mode — payments reduce (principal + interest) combined.
+    // PARCELADO (Amortization) - Same monthly logic
     let currentPrincipal = valor;
-    let lastCalcDate = new Date(dataVencimento);
+    let lastCalcDate = birthDate;
     let totalInterestAccrued = 0;
     let totalPaid = 0;
 
     for (const p of sortedPayments) {
       totalPaid += p.valor;
-
       if (p.date < lastCalcDate) {
         currentPrincipal -= p.valor;
         continue;
       }
-
       const interest = calculateInterestChunk(currentPrincipal, taxType, taxRate, lastCalcDate, p.date);
       totalInterestAccrued += interest;
       currentPrincipal = currentPrincipal + interest - p.valor;
@@ -142,12 +129,10 @@ export function calculateDebtBreakdown(
       currentPrincipal += finalInterest;
     }
 
-    const saldoPrincipal = Math.max(0, valor - totalPaid + totalInterestAccrued);
-
     return {
       principal: valor,
       jurosAcumulados: totalInterestAccrued,
-      jurosPagos: 0, // In amortization mode, payments cover both interest and principal combined
+      jurosPagos: 0,
       principalPago: totalPaid,
       totalPago: totalPaid,
       saldoPrincipal: Math.max(0, currentPrincipal),
@@ -157,42 +142,32 @@ export function calculateDebtBreakdown(
   }
 }
 
-/**
- * Calculates the current value of a debt based on the tax type, tax rate, due date, and payment mode.
- * This is a simplified wrapper around calculateDebtBreakdown.
- */
 export function calculateCurrentValue(
   valor: number,
   taxType: TaxType,
   taxValue: number,
-  dataVencimento: string,
+  dataCriacao: string,
   pagamentos: { data: string; valor: number; tipo?: PagamentoTipo }[] = [],
   paymentMode: PaymentMode = PaymentMode.PARCELADO
 ): number {
-  const breakdown = calculateDebtBreakdown(valor, taxType, taxValue, dataVencimento, paymentMode, pagamentos);
+  const breakdown = calculateDebtBreakdown(valor, taxType, taxValue, dataCriacao, paymentMode, pagamentos);
   return breakdown.valorAtual;
 }
 
-/**
- * Calculates the current month's interest for a JUROS_MENSAL debt.
- * Used to pre-fill the payment modal.
- */
 export function calculateMonthlyInterest(
   valor: number,
   taxType: TaxType,
   taxValue: number
 ): number {
   const taxRate = taxValue / 100;
-  // Calculate interest for exactly 1 month (30 days)
-  const startDate = new Date();
-  const endDate = new Date();
-  endDate.setDate(endDate.getDate() + 30);
-  return calculateInterestChunk(valor, taxType, taxRate, startDate, endDate);
+  // Predict 1 month of interest
+  const months = 1;
+  if (taxType === TaxType.COMPOSTA) {
+    return valor * Math.pow(1 + taxRate, months) - valor;
+  }
+  return valor * taxRate * months;
 }
 
-/**
- * Formats a number as BRL currency string.
- */
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -200,9 +175,6 @@ export function formatCurrency(value: number): string {
   }).format(value);
 }
 
-/**
- * Formats a date string to a localized date string.
- */
 export function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('pt-BR', {
     day: '2-digit',
@@ -211,9 +183,6 @@ export function formatDate(dateStr: string): string {
   });
 }
 
-/**
- * Formats a date string to a localized datetime string.
- */
 export function formatDateTime(dateStr: string): string {
   return new Date(dateStr).toLocaleString('pt-BR', {
     day: '2-digit',
@@ -223,4 +192,3 @@ export function formatDateTime(dateStr: string): string {
     minute: '2-digit',
   });
 }
-

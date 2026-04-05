@@ -1,7 +1,8 @@
 export enum StatusDivida {
   PENDENTE = 'PENDENTE',
-  PAGA = 'PAGA',
-  VENCIDA = 'VENCIDA',
+  PAGO = 'PAGO',
+  ATRASADO = 'ATRASADO',
+  PARCIAL = 'PARCIAL',
   CANCELADA = 'CANCELADA',
   NEGOCIANDO = 'NEGOCIANDO',
 }
@@ -62,10 +63,11 @@ export interface Divida {
   status: StatusDivida;
   taxType: TaxType;
   taxValue: number;
+  numeroParcelas: number;
   paymentMode: PaymentMode;
   valorAtual: number;
   lembreteEnviado: string | null;
-  pagamentos?: Pagamento[]; // Optional to support older records
+  pagamentos?: Pagamento[];
   createAt: string;
   updateAt: string;
 }
@@ -120,10 +122,11 @@ export interface Parcela {
 
 export const STATUS_LABELS: Record<StatusDivida, string> = {
   [StatusDivida.PENDENTE]: 'Pendente',
-  [StatusDivida.PAGA]: 'Paga',
-  [StatusDivida.VENCIDA]: 'Vencida',
+  [StatusDivida.PAGO]: 'Paga',
+  [StatusDivida.ATRASADO]: 'Atrasado',
   [StatusDivida.CANCELADA]: 'Cancelada',
   [StatusDivida.NEGOCIANDO]: 'Negociando',
+  [StatusDivida.PARCIAL]: 'Pago Parcial',
 };
 
 export const TAX_TYPE_LABELS: Record<TaxType, string> = {
@@ -146,8 +149,9 @@ export const PAYMENT_MODE_LABELS: Record<PaymentMode, string> = {
 
 export const STATUS_COLORS: Record<StatusDivida, string> = {
   [StatusDivida.PENDENTE]: '#f59e0b',
-  [StatusDivida.PAGA]: '#10b981',
-  [StatusDivida.VENCIDA]: '#ef4444',
+  [StatusDivida.PAGO]: '#10b981',
+  [StatusDivida.ATRASADO]: '#ef4444',
   [StatusDivida.CANCELADA]: '#6b7280',
   [StatusDivida.NEGOCIANDO]: '#3b82f6',
+  [StatusDivida.PARCIAL]: '#3b82f6',
 };

@@ -25,7 +25,7 @@ export const CashflowChart: React.FC = () => {
       // Sum all receivables for this month (Pending/Overdue)
       const expectedInMonth = dividas
         .filter(d => 
-          (d.status === StatusDivida.PENDENTE || d.status === StatusDivida.VENCIDA) &&
+          (d.status === StatusDivida.PENDENTE || d.status === StatusDivida.ATRASADO) &&
           isWithinInterval(new Date(d.dataVencimento), { start, end })
         )
         .reduce((sum, d) => sum + d.valorAtual, 0);

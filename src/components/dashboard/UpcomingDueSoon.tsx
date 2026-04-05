@@ -12,7 +12,7 @@ export const UpcomingDueSoon: React.FC = () => {
     if (!allDividas) return null;
     const now = new Date();
     const sevenDays = addDays(now, 7).toISOString();
-    
+
     return allDividas
       .filter((d) => (d.status === StatusDivida.PENDENTE || d.status === StatusDivida.NEGOCIANDO) && d.dataVencimento <= sevenDays)
       .sort((a, b) => a.dataVencimento.localeCompare(b.dataVencimento))
@@ -22,7 +22,7 @@ export const UpcomingDueSoon: React.FC = () => {
   if (!dividas) return null;
 
   return (
-    <div className="space-y-2">
+    <div className="divide-y divide-dark-300/30">
       {dividas.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-10 text-center">
           <div className="w-12 h-12 bg-emerald-500/10 rounded-xl flex items-center justify-center mb-3">
@@ -42,28 +42,20 @@ export const UpcomingDueSoon: React.FC = () => {
             <Link
               key={d.id}
               to={`/dividas/${d.id}`}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-dark-500 transition-colors group"
+              className="flex items-center justify-between px-1 py-3 hover:bg-dark-500/30 transition-colors group rounded-xl"
             >
-              <div
-                className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                  isOverdue ? 'bg-red-400 animate-pulse' : daysUntilDue <= 1 ? 'bg-amber-400 animate-pulse' : 'bg-amber-400'
-                }`}
-              />
               <div className="flex-1 min-w-0">
                 <p className="text-white text-sm font-medium truncate group-hover:text-primary-400 transition-colors">
                   {d.devedorNome || 'Cliente Desconhecido'}
                 </p>
-                <p className="text-gray-500 text-xs">
-                  {isOverdue
-                    ? `Venceu há ${Math.abs(daysUntilDue)} dias`
-                    : daysUntilDue === 0
-                    ? 'Vence hoje'
-                    : `Vence em ${daysUntilDue} dia(s)`}
+                <p className="text-gray-500 text-xs mt-0.5">
+                  {formatDate(d.dataVencimento)}
                 </p>
               </div>
-              <div className="text-right flex-shrink-0">
-                <p className="text-primary-400 text-sm font-semibold">{formatCurrency(d.valorAtual)}</p>
-                <p className="text-gray-600 text-xs">{formatDate(d.dataVencimento)}</p>
+              <div className="flex-shrink-0 ml-4">
+                <p className={`text-sm font-semibold ${isOverdue ? 'text-red-400' : 'text-white'}`}>
+                  {formatCurrency(d.valorAtual)}
+                </p>
               </div>
             </Link>
           );

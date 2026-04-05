@@ -112,6 +112,7 @@ export const DebtForm: React.FC<DebtFormProps> = ({
       taxType: data.taxType as TaxType,
       taxValue: parseFloat(data.taxValue) || 0,
       paymentMode: data.paymentMode as PaymentMode,
+      numeroParcelas: 1, // Defaulting to 1 for new debts
     }, newClientData);
   };
 

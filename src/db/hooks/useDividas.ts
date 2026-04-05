@@ -1,12 +1,59 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { api } from '../../services/api';
 import type { Divida, DividaInput, PagamentoTipo } from '../types';
-import { StatusDivida, PaymentMode } from '../types';
-import { calculateCurrentValue, calculateDebtBreakdown } from '../../services/taxCalculator';
+import { StatusDivida, PaymentMode, TaxType } from '../types';
+import { calculateDebtBreakdown } from '../../services/taxCalculator';
+import { differenceInDays } from 'date-fns';
 
 // ----------------------------------------------------
 // Custom Hooks for the Frontend React Comps
 // ----------------------------------------------------
+
+/**
+ * Determines the correct status for a debt based on payments and due date.
+ * - If fully paid, returns PAGA
+ * - If past due date and not paid, returns VENCIDA
+ * - Otherwise returns the original status (PENDENTE, NEGOCIANDO, CANCELADA)
+ */
+function determineDebtStatus(
+  status: any,
+  dataVencimento: string,
+  valorAtual: number,
+  pagamentos: { data: string; valor: number; tipo: string }[]
+): StatusDivida {
+  const s = String(status).toUpperCase();
+  
+  // Se veio do Java como PAGO
+  if (s === 'PAGA' || s === 'PAGO') {
+    return StatusDivida.PAGO;
+  }
+  if (s === 'CANCELADA') {
+    return StatusDivida.CANCELADA;
+  }
+  if (s === 'NEGOCIANDO') {
+    return StatusDivida.NEGOCIANDO;
+  }
+
+  // Check if debt is fully paid
+  if (valorAtual <= 0) {
+    return StatusDivida.PAGO;
+  }
+
+  // Se veio do Java como ATRASADO
+  if (s === 'ATRASADO' || s === 'VENCIDA') {
+    return StatusDivida.ATRASADO;
+  }
+
+  // Check se data de vencimento passou
+  if (dataVencimento) {
+    const daysUntilDue = differenceInDays(new Date(dataVencimento), new Date());
+    if (daysUntilDue < 0) {
+      return StatusDivida.ATRASADO;
+    }
+  }
+
+  return StatusDivida.PENDENTE;
+}
 
 export function useAllDividas() {
   const [dividas, setDividas] = useState<Divida[] | undefined>(undefined);
@@ -14,21 +61,71 @@ export function useAllDividas() {
   const fetchDividas = useCallback(async () => {
     try {
       const response = await api.get('/debts');
-      
-      // Mapeando dados para bater com a interface do Frontend
-      const backendArray = response.data.map((d: any) => ({
-        id: String(d.id),
-        clienteId: String(d.cliente?.id || d.clientId), // Ajuste as chaves conforme retorno backend
-        valor: d.valorOriginal,
-        descricao: d.descricao,
-        dataVencimento: d.dataVencimento,
-        taxType: d.taxType,
-        taxValue: Number(d.taxJuros),   // Ajuste para interface
-        numeroParcelas: d.numeroParcelas || 1,
-        paymentMode: PaymentMode.PARCELADO,
-        status: d.status || StatusDivida.PENDENTE,
-        valorAtual: d.valorOriginal, // Idealmente o backend manda o breakdown junto
-        pagamentos: d.pagamentos || [],
+
+      const backendArray = await Promise.all(response.data.map(async (d: any) => {
+        const valorOriginal = Number(d.valorOriginal || d.valor || 0);
+        let pagamentos = (d.payments || d.pagamentos || []).map((p: any) => ({
+          id: p.id,
+          data: p.paymentDate || p.data || new Date().toISOString(),
+          valor: Number(p.valuePrincipal || 0) + Number(p.taxValue || 0) || Number(p.valor || 0),
+          tipo: (p.paymentType?.toLowerCase()) || (p.tipo) || 'parcela'
+        }));
+
+        // Dynamically fetch breakdown for each debt since DebtResponseDTO doesn't include it
+        let apiBreakdown: any = null;
+        try {
+          const bdRes = await api.get(`/debts/${d.id}/breakdown`);
+          apiBreakdown = bdRes.data;
+        } catch (e) {
+          console.warn(`Breakdown error for debt ${d.id}`);
+        }
+
+        const breakdown = apiBreakdown ? {
+          valorOriginal: Number(apiBreakdown.valorOriginal || 0),
+          jurosAcumulados: Number(apiBreakdown.jurosAcumulados || 0),
+          jurosPagos: Number(apiBreakdown.totalJurosPagos || 0),
+          principalPago: Number(apiBreakdown.totalPrincipalPago || 0),
+          saldoPrincipal: Number(apiBreakdown.saldoPrincipal || 0),
+          jurosPendentes: Number(apiBreakdown.jurosPendentes || 0),
+          totalPago: Number(apiBreakdown.totalJurosPagos || 0) + Number(apiBreakdown.totalPrincipalPago || 0),
+          valorAtual: Number(apiBreakdown.saldoPrincipal || 0) + Number(apiBreakdown.jurosPendentes || 0),
+          principal: Number(apiBreakdown.valorOriginal || 0)
+        } : calculateDebtBreakdown(
+          valorOriginal,
+          d.taxType === 'JUROS_MENSAL' ? TaxType.SIMPLES : TaxType.JUROS_FIXO,
+          Number(d.taxJuros || 0) * 100,
+          d.dataVencimento || d.createAt || d.createdAt,
+          d.taxType || PaymentMode.PARCELADO,
+          pagamentos
+        );
+
+        // Determine status automatically
+        const calculatedStatus = determineDebtStatus(
+          d.status || StatusDivida.PENDENTE,
+          d.dataVencimento,
+          breakdown.valorAtual,
+          pagamentos
+        );
+
+        return {
+          id: String(d.id),
+          clienteId: String(d.cliente?.id || d.clienteId || d.clientId),
+          devedorNome: d.cliente?.nome || d.name || d.clienteNome || d.clientName || 'Cliente',
+          valor: valorOriginal,
+          descricao: d.descricao || d.descrição,
+          dataVencimento: d.dataVencimento,
+          taxType: d.taxType === 'JUROS_MENSAL' ? TaxType.SIMPLES : TaxType.JUROS_FIXO,
+          taxValue: Number(d.taxJuros || d.taxaJuros || 0) * 100,
+          numeroParcelas: d.numeroParcelas || 1,
+          paymentMode: d.taxType || d.paymentMode || PaymentMode.PARCELADO,
+          status: calculatedStatus,
+          valorAtual: Number(breakdown.valorAtual || 0),
+          pagamentos,
+          breakdown, // Expose breakdown to table directly
+          lembreteEnviado: d.lembreteEnviado || null,
+          createAt: d.createAt || d.createdAt || new Date().toISOString(),
+          updateAt: d.updateAt || d.updatedAt || d.createAt || d.createdAt,
+        };
       }));
 
       setDividas(backendArray);
@@ -53,24 +150,52 @@ export function useDividaById(id: string | undefined) {
     try {
       const response = await api.get(`/debts/${id}`);
       const d = response.data;
-      
-      // Convertendo a resposta da API para a interface `Divida` do seu Frontend
+
+      const valorOriginal = Number(d.valorOriginal || d.valor || 0);
+      const pagamentos = (d.payments || d.pagamentos || []).map((p: any) => ({
+        id: p.id,
+        data: p.paymentDate || p.data || new Date().toISOString(),
+        valor: Number(p.valuePrincipal || 0) + Number(p.taxValue || 0) || Number(p.valor || 0),
+        tipo: (p.paymentType?.toLowerCase()) || (p.tipo) || 'parcela'
+      }));
+
+      // Calculate breakdown to get accurate valorAtual
+      const breakdown = calculateDebtBreakdown(
+        valorOriginal,
+        d.taxType === 'JUROS_MENSAL' ? TaxType.SIMPLES : TaxType.JUROS_FIXO,
+        Number(d.taxJuros || 0) * 100,
+        d.dataVencimento || d.createAt || d.createdAt,
+        d.taxType || PaymentMode.PARCELADO,
+        pagamentos
+      );
+
+      // Determine status automatically
+      const calculatedStatus = determineDebtStatus(
+        d.status || StatusDivida.PENDENTE,
+        d.dataVencimento,
+        breakdown.valorAtual,
+        pagamentos
+      );
+
       const mD: Divida = {
         id: String(d.id),
-        clienteId: String(d.cliente?.id || d.clientId || d.clienteId),
-        valor: d.valorOriginal,
-        descricao: d.descricao,
+        clienteId: String(d.cliente?.id || d.clienteId || d.clientId),
+        devedorNome: d.cliente?.nome || d.name || d.clienteNome || 'Cliente',
+        valor: valorOriginal,
+        descricao: d.descricao || d.descrição,
         dataVencimento: d.dataVencimento,
-        taxType: d.taxType,
-        taxValue: Number(d.taxJuros),
+        taxType: d.taxType === 'JUROS_MENSAL' ? TaxType.SIMPLES : TaxType.JUROS_FIXO,
+        taxValue: Number(d.taxJuros || d.taxaJuros || 0) * 100,
         numeroParcelas: d.numeroParcelas || 1,
-        paymentMode: PaymentMode.PARCELADO,
-        status: d.status || StatusDivida.PENDENTE,
-        valorAtual: d.valorOriginal,
-        pagamentos: d.pagamentos || [],
-        createAt: d.createAt || new Date().toISOString()
+        paymentMode: d.taxType || d.paymentMode || PaymentMode.PARCELADO,
+        status: calculatedStatus,
+        valorAtual: Number(breakdown.valorAtual || 0),
+        pagamentos,
+        lembreteEnviado: d.lembreteEnviado || null,
+        createAt: d.createAt || d.createdAt || new Date().toISOString(),
+        updateAt: d.updateAt || d.updatedAt || d.createAt || d.createdAt || new Date().toISOString()
       };
-      
+
       setDivida(mD);
     } catch (error) {
       console.error('Falha ao buscar divida by id', error);
@@ -85,20 +210,54 @@ export function useDividaById(id: string | undefined) {
   return divida;
 }
 
+export function useDividaBreakdown(id: string | undefined) {
+  const [breakdown, setBreakdown] = useState<any>(undefined);
+  const [loading, setLoading] = useState(false);
+
+  const fetchBreakdown = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const res = await api.get(`/debts/${id}/breakdown`);
+      const b = res.data;
+      if (b) {
+         setBreakdown({
+            principal: Number(b.valorOriginal || 0),
+            jurosAcumulados: Number(b.jurosAcumulados || 0),
+            jurosPagos: Number(b.totalJurosPagos || 0),
+            principalPago: Number(b.totalPrincipalPago || 0),
+            saldoPrincipal: Number(b.saldoPrincipal || 0),
+            jurosPendentes: Number(b.jurosPendentes || 0),
+            totalPago: Number(b.totalJurosPagos || 0) + Number(b.totalPrincipalPago || 0),
+            valorAtual: Number(b.saldoPrincipal || 0) + Number(b.jurosPendentes || 0)
+         });
+      }
+    } catch (err) {
+      console.error('Erro ao buscar breakdown', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    fetchBreakdown();
+  }, [fetchBreakdown]);
+
+  return { breakdown, loading, refresh: fetchBreakdown };
+}
+
 // ----------------------------------------------------
 // Functions to Interact with Backend
 // ----------------------------------------------------
 
 export async function createDivida(input: DividaInput): Promise<string> {
-  // Converte a interface do frontend para o body aceito pelo backend:
-  // POST /debts -> clientId, valorOriginal, descricao, dataVencimento, taxType, taxJuros, numeroParcelas
   const body = {
     clientId: input.clienteId,
     valorOriginal: input.valor,
     descricao: input.descricao,
-    dataVencimento: input.dataVencimento, 
-    taxType: input.taxType, // JUROS_MENSAL / JUROS_SIMPLES
-    taxJuros: input.taxValue, // de 0.0 a 1.0 (ex 0.05)
+    dataVencimento: input.dataVencimento.split('.')[0].replace('Z', ''),
+    taxType: input.paymentMode,
+    taxJuros: (input.taxValue || 0) / 100,
     numeroParcelas: input.numeroParcelas || 1
   };
 
@@ -107,21 +266,17 @@ export async function createDivida(input: DividaInput): Promise<string> {
 }
 
 export async function updateDivida(id: string, updates: Partial<DividaInput>): Promise<void> {
-  // Pelas rotas informadas, não existe PUT /debts/{id} a não ser /status.
-  console.warn('Backend sem suporte total a updateDivida. Apenas status e pagamentos existem.');
   if (updates.status) {
     await updateStatus(id, updates.status);
   }
 }
 
 export async function deleteDivida(id: string): Promise<void> {
-  // Rota DELETE não listada
-  console.warn('Mock: backend sem rota DELETE /debts.');
+  await api.delete(`/debts/${id}`);
 }
 
-export async function updateStatus(id: string, novoStatus: StatusDivida) {
-  // Rotas listadas: PUT /debts/{id}/status 
-  await api.put(`/debts/${id}/status`, { status: novoStatus });
+export async function updateStatus(id: string, novoStatus?: StatusDivida) {
+  await api.put(`/debts/${id}/status`);
 }
 
 export async function addPagamento(
@@ -130,39 +285,86 @@ export async function addPagamento(
   data: string,
   tipo: PagamentoTipo = 'parcela'
 ): Promise<void> {
-  // POST /debts/{debtId}/payments -> valorPago, dataPagamento
+  // Fetch the current debt to calculate the split
+  const resDebt = await api.get(`/debts/${dividaId}`);
+  const d = resDebt.data;
+
+  // Local mapping to the logic
+  const pagamentosPrevios = (d.payments || []).map((p: any) => ({
+    data: p.paymentDate,
+    valor: Number(p.valuePrincipal || 0) + Number(p.taxValue || 0),
+    tipo: p.paymentType?.toLowerCase()
+  }));
+
+  const breakdown = calculateDebtBreakdown(
+    Number(d.valorOriginal || 0),
+    d.taxType === 'JUROS_MENSAL' ? TaxType.SIMPLES : TaxType.JUROS_FIXO,
+    Number(d.taxJuros || 0) * 100,
+    d.createAt || d.createdAt,
+    d.taxType || PaymentMode.PARCELADO,
+    pagamentosPrevios
+  );
+
+  let paymentType = 'PARCELA';
+  let taxValue = 0;
+  let valuePrincipal = 0;
+
+  if (tipo === 'juros') {
+    paymentType = 'JUROS';
+    taxValue = valor;
+    valuePrincipal = 0;
+  } else if (tipo === 'quitacao') {
+    paymentType = 'QUITACAO';
+    taxValue = breakdown.jurosPendentes;
+    valuePrincipal = breakdown.saldoPrincipal;
+  } else {
+    // Amortization (parcela) - covers pending interest first
+    paymentType = 'PARCELA';
+    taxValue = Math.min(valor, breakdown.jurosPendentes);
+    valuePrincipal = valor - taxValue;
+  }
+
   const body = {
-    valorPago: valor,
-    dataPagamento: data // data em formato ISO LocalDateTime/Date
+    paymentType,
+    taxValue,
+    valuePrincipal,
+    paymentDate: data.split('.')[0].replace('Z', '')
   };
+
+  console.log('Enviando Pagamento:', body);
   await api.post(`/debts/${dividaId}/payments`, body);
-  
+
+  // Update status automatically based on payment type and breakdown
   if (tipo === 'quitacao') {
-    await updateStatus(dividaId, StatusDivida.PAGA);
+    await updateStatus(dividaId, StatusDivida.PAGO);
+  } else if (d.paymentMode === PaymentMode.JUROS_MENSAL) {
+    // For JUROS_MENSAL, check if principal is fully paid
+    const newPrincipalPago = breakdown.principalPago + valuePrincipal;
+    if (newPrincipalPago >= Number(d.valorOriginal || 0)) {
+      await updateStatus(dividaId, StatusDivida.PAGO);
+    }
+  } else {
+    // For PARCELADO, check if the debt is fully paid
+    const newBreakdown = calculateDebtBreakdown(
+      Number(d.valorOriginal || 0),
+      d.taxType === 'JUROS_MENSAL' ? TaxType.SIMPLES : TaxType.JUROS_FIXO,
+      Number(d.taxJuros || 0) * 100,
+      d.createAt || d.createdAt,
+      d.taxType || PaymentMode.PARCELADO,
+      [...pagamentosPrevios, { data, valor: valor, tipo }]
+    );
+    if (newBreakdown.saldoPrincipal <= 0 && newBreakdown.jurosPendentes <= 0) {
+      await updateStatus(dividaId, StatusDivida.PAGO);
+    }
   }
 }
 
-// ----------------------------------------------------
-// Lógicas Locais / Stats mantidas para o Dashboard
-// ----------------------------------------------------
-
-export async function markReminderSent(id: string): Promise<void> {
-  console.warn('Backend responsável agora.');
-}
-
-export async function updateAllCurrentValues(): Promise<void> {
-  console.warn('Backend assumiu job responsável de atualização e valores diários.');
-}
-
-export async function autoMarkOverdue(): Promise<void> {
-  console.warn('Backend assumiu cron job de vencidas.');
-}
-
-// Função de estatísticas para o Dashboard que acessa API `/debts`
 export async function getDividaStats() {
   const res = await api.get('/debts');
   const all: any[] = res.data || [];
-  
+
+  // Stats iniciais zerados
+
   const stats = {
     total: all.length,
     totalValor: 0,
@@ -181,41 +383,64 @@ export async function getDividaStats() {
   };
 
   for (const d of all) {
-    // Map minimal data to compute local calculations if backend didn't do it.
-    // Ideal: GET `/dashboard/stats` no Backend real!
-    const valorOriginal = d.valorOriginal || d.valor || 0;
-    const pagamentos = d.pagamentos || [];
+    const valorOriginal = Number(d.valorOriginal || d.valor || 0);
     const status = d.status || StatusDivida.PENDENTE;
 
+    // Use the calculator for real values
+    const pagamentosPrevios = (d.payments || []).map((p: any) => ({
+      data: p.paymentDate,
+      valor: Number(p.valuePrincipal || 0) + Number(p.taxValue || 0),
+      tipo: p.paymentType?.toLowerCase()
+    }));
+
+    // Stats iniciais zerados
+    // Fetch breakdown for this debt to get real data since it's missing in DTO
+    let apiBreakdown: any = null;
+    try {
+      const bdRes = await api.get(`/debts/${d.id}/breakdown`);
+      apiBreakdown = bdRes.data;
+    } catch (e) {
+      // ignore
+    }
+
+    const breakdown = apiBreakdown ? {
+      valorAtual: Number(apiBreakdown.saldoPrincipal || 0) + Number(apiBreakdown.jurosPendentes || 0),
+      totalPago: Number(apiBreakdown.totalJurosPagos || 0) + Number(apiBreakdown.totalPrincipalPago || 0),
+      jurosAcumulados: Number(apiBreakdown.jurosAcumulados || 0),
+      jurosPendentes: Number(apiBreakdown.jurosPendentes || 0)
+    } : calculateDebtBreakdown(
+      valorOriginal,
+      d.taxType === 'JUROS_MENSAL' ? TaxType.SIMPLES : TaxType.JUROS_FIXO,
+      Number(d.taxJuros || 0) * 100,
+      d.dataVencimento || d.createAt || d.createdAt || new Date().toISOString(),
+      d.taxType || PaymentMode.PARCELADO,
+      pagamentosPrevios
+    );
+
     stats.totalValor += valorOriginal;
-    stats.totalValorAtual += valorOriginal; // (Precisa refinar calculos ou buscar breakdown /debts/{id}/breakdown)
+    stats.totalValorAtual += Number(breakdown.valorAtual || 0);
+    stats.valorPago += Number(breakdown.totalPago || 0);
+    stats.jurosAcumulados += Number(breakdown.jurosAcumulados || 0);
+    stats.jurosPendentes += Number(breakdown.jurosPendentes || 0);
 
-    const totalAmortizado = pagamentos.reduce((acc: any, p: any) => acc + (p.valor || p.valorPago || 0), 0) || 0;
-    stats.valorPago += totalAmortizado;
-
-    if (status !== StatusDivida.PAGA && status !== StatusDivida.CANCELADA) {
+    if (status !== StatusDivida.PAGO && status !== StatusDivida.CANCELADA) {
       stats.totalEmprestado += valorOriginal;
-      stats.jurosAcumulados += 0; // Necessaria Rota de Summary Backend para estatísticas 100% corretas
-      stats.jurosPendentes += 0;
     }
 
     switch (status) {
       case StatusDivida.PENDENTE:
       case 'PENDENTE':
         stats.pendentes++;
-        stats.valorPendente += valorOriginal - totalAmortizado;
+        stats.valorPendente += breakdown.valorAtual;
         break;
-      case StatusDivida.PAGA:
+      case StatusDivida.PAGO:
       case 'PAGA':
         stats.pagas++;
-        if (totalAmortizado === 0) {
-          stats.valorPago += valorOriginal;
-        }
         break;
-      case StatusDivida.VENCIDA:
+      case StatusDivida.ATRASADO:
       case 'VENCIDA':
         stats.vencidas++;
-        stats.valorVencido += valorOriginal;
+        stats.valorVencido += breakdown.valorAtual;
         break;
       case StatusDivida.CANCELADA:
       case 'CANCELADA':

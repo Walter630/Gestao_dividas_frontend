@@ -10,8 +10,9 @@ interface StatusBadgeProps {
 
 const statusBgMap: Record<string, string> = {
   PENDENTE: 'bg-amber-500/20 text-amber-400 border border-amber-500/30',
-  PAGA: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
-  VENCIDA: 'bg-red-500/20 text-red-400 border border-red-500/30',
+  PAGO: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
+  ATRASADO: 'bg-red-500/20 text-red-400 border border-red-500/30',
+  PARCIAL: 'bg-blue-500/20 text-blue-400 border border-blue-500/30',
   ATRASADA: 'bg-red-500/20 text-red-400 border border-red-500/30',
   CANCELADA: 'bg-gray-500/20 text-gray-400 border border-gray-500/30',
   NEGOCIANDO: 'bg-blue-500/20 text-blue-400 border border-blue-500/30',
@@ -19,8 +20,9 @@ const statusBgMap: Record<string, string> = {
 
 const statusDotMap: Record<string, string> = {
   PENDENTE: 'bg-amber-400',
-  PAGA: 'bg-emerald-400',
-  VENCIDA: 'bg-red-400 animate-pulse',
+  PAGO: 'bg-emerald-400',
+  ATRASADO: 'bg-red-400 animate-pulse',
+  PARCIAL: 'bg-blue-400',
   ATRASADA: 'bg-red-400 animate-pulse',
   CANCELADA: 'bg-gray-400',
   NEGOCIANDO: 'bg-blue-400',
