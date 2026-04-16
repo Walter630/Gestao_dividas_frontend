@@ -8,8 +8,8 @@ export enum StatusDivida {
 }
 
 export enum StatusCompra {
-  ATIVA = 'ATIVA',
-  QUITADA = 'QUITADA',
+  ATIVA = 'PENDENTE', // Mapeado para PENDENTE para compatibilidade com o Java
+  QUITADA = 'PAGO',
   CANCELADA = 'CANCELADA',
 }
 
@@ -84,11 +84,11 @@ export interface Pagamento {
 // Novos Tipos para Cartões e Parcelamentos
 export interface CartaoCredito {
   id?: string;
-  name: string;           // backend: name
-  limit: number;          // backend: limit
-  limitDisponivel: number; // backend: limitDisponivel
-  diaFechamento: number;  // backend: diaFechamento (1-31)
-  diaVencimento: number;  // backend: diaVencimento (1-31)
+  name: string;
+  valorLimite: number;
+  limitDisponivel: number;
+  diaFechamento: number;
+  diaVencimento: number;
   ativo?: boolean;
   userId?: string;
   createAt?: string;
@@ -103,7 +103,7 @@ export interface CompraParcelada {
   valorTotal: number;
   quantidadeParcelas: number;
   dataCompra: string;
-  possuiJuros: boolean;
+  juros: boolean;
   taxaJuros?: number;
   status: StatusCompra;
   createAt: string;

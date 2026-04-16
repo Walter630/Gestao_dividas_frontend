@@ -18,6 +18,7 @@ import { CardListPage } from './pages/cards/CardListPage';
 import { NewCardPage } from './pages/cards/NewCardPage';
 import { NewPurchasePage } from './pages/cards/NewPurchasePage';
 import { CardDetailPage } from './pages/cards/CardDetailPage';
+import { PurchaseDetailPage } from './pages/cards/PurchaseDetailPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { InstallBanner } from './components/ui/InstallBanner';
 import './App.css';
@@ -52,6 +53,7 @@ function App() {
           <Route path="/cartoes/novo" element={<NewCardPage />} />
           <Route path="/cartoes/:id" element={<CardDetailPage />} />
           <Route path="/cartoes/compra/nova" element={<NewPurchasePage />} />
+          <Route path="/cartoes/compra/:id" element={<PurchaseDetailPage />} />
 
           <Route path="/configuracoes" element={<SettingsPage />} />
           <Route path="/assinatura" element={<SubscriptionPage />} />

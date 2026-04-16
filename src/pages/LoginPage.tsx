@@ -37,7 +37,7 @@ export const LoginPage = () => {
 
       if (accessToken) {
         setToken(accessToken, data.refreshToken);
-        setUser({ email, role: data.role || 'USER' });
+        setUser({ id: data.userId, email, role: data.role || 'USER' });
         toast.success('Login efetuado com sucesso!');
         navigate('/dashboard');
       } else {

@@ -69,17 +69,24 @@ export const NewPurchasePage: React.FC = () => {
     setError(null);
 
     try {
-      await purchaseService.create({
-        cartaoId: formData.cartaoId,
+      const cardId = formData.cartaoId;
+      const desc = formData.descricao;
+
+      const payload = {
+        // Envia o objeto aninhado esperado pelo Spring Data JPA
+        cartaoCredito: { id: cardId },
+        
         loja: formData.loja,
         descricao: formData.descricao,
         valorTotal: Number(formData.valorTotal),
         quantidadeParcelas: Number(formData.quantidadeParcelas),
-        dataCompra: formData.dataCompra,
+        dataCompra: `${formData.dataCompra}T12:00:00`,
         categoria: formData.categoria,
-        possuiJuros: false,
+        juros: false,
         status: StatusCompra.ATIVA,
-      });
+      };
+
+      await purchaseService.create(payload as any);
       navigate('/cartoes');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Erro ao registrar compra.');
@@ -135,7 +142,7 @@ export const NewPurchasePage: React.FC = () => {
                     required
                   >
                     {cards.map(card => (
-                      <option key={card.id} value={card.id}>{card.nome}</option>
+                      <option key={card.id} value={card.id}>{card.name}</option>
                     ))}
                   </select>
                 </div>

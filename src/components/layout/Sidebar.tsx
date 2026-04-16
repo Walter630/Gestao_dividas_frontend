@@ -18,6 +18,7 @@ const navItems = [
   {
     path: '/cartoes',
     label: 'Cartões',
+    module: 'cartoes',
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
@@ -29,6 +30,7 @@ const navItems = [
   {
     path: '/dividas/nova',
     label: 'Nova Dívida',
+    module: 'dividas',
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
@@ -40,6 +42,7 @@ const navItems = [
   {
     path: '/clientes',
     label: 'Clientes',
+    module: 'dividas',
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
@@ -129,7 +132,9 @@ export const Sidebar: React.FC = () => {
 
         {/* Navigation */}
         <nav className="flex-1 p-4 space-y-1">
-          {navItems.map((item) => {
+          {navItems
+            .filter(item => !item.module || (useUIStore.getState().enabledModules as any)[item.module])
+            .map((item) => {
             const isActiveNew = item.path === '/dividas/nova' && location.pathname === '/dividas/nova';
             const isActiveDividas = item.path === '/dividas' && location.pathname === '/dividas';
             const isActiveDash = item.path === '/dashboard' && location.pathname === '/dashboard';

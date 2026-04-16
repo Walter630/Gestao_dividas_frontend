@@ -5,11 +5,13 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card } from '../../components/ui/Card';
 import { cardService } from '../../services/cardService';
+import { useAuthStore } from '../../store/useAuthStore';
 
 export const NewCardPage: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const user = useAuthStore((state) => state.user);
 
   const [formData, setFormData] = useState({
     nome: '',
@@ -24,15 +26,20 @@ export const NewCardPage: React.FC = () => {
     setError(null);
 
     try {
-      await cardService.create({
-        nome: formData.nome,
-        limite: Number(formData.limite),
+      const cardPayload = {
+        name: formData.nome,
+        valorLimite: Number(formData.limite),
+        limitDisponivel: Number(formData.limite),
         diaFechamento: Number(formData.diaFechamento),
         diaVencimento: Number(formData.diaVencimento),
         ativo: true,
-      });
+        userId: user?.id,
+      };
+
+      await cardService.create(cardPayload as any);
       navigate('/cartoes');
     } catch (err: any) {
+      console.error('Erro ao criar cartão:', err.response?.data);
       setError(err.response?.data?.message || 'Erro ao salvar cartão.');
     } finally {
       setLoading(false);
@@ -43,9 +50,9 @@ export const NewCardPage: React.FC = () => {
     <Layout>
       <div className="p-6 max-w-2xl mx-auto animate-in slide-in-from-bottom-4 duration-500">
         <header className="mb-8">
-          <Button 
-            variant="ghost" 
-            size="sm" 
+          <Button
+            variant="ghost"
+            size="sm"
             className="-ml-2 mb-4"
             onClick={() => navigate('/cartoes')}
             icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>}
@@ -107,16 +114,16 @@ export const NewCardPage: React.FC = () => {
             </div>
 
             <div className="pt-4 flex gap-4">
-              <Button 
-                type="submit" 
-                className="flex-1" 
+              <Button
+                type="submit"
+                className="flex-1"
                 loading={loading}
               >
                 Salvar Cartão
               </Button>
-              <Button 
-                type="button" 
-                variant="secondary" 
+              <Button
+                type="button"
+                variant="secondary"
                 onClick={() => navigate('/cartoes')}
               >
                 Cancelar
