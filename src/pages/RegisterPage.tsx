@@ -36,13 +36,14 @@ export const RegisterPage = () => {
     } catch (error: any) {
       const status = error.response?.status;
       const backendMessage = error.response?.data?.message || '';
-      
+
       if (status === 409 || backendMessage.toLowerCase().includes('in use') || backendMessage.toLowerCase().includes('uso') || backendMessage.toLowerCase().includes('already exists')) {
         setErrorMessage('Esse nome de usuário ou email já está em uso.');
         toast.error('Usuário já existe!');
       } else if (status === 400) {
         setErrorMessage('Dados inválidos. Verifique as informações fornecidas e tente novamente.');
       } else {
+        console.log(error)
         setErrorMessage(backendMessage || 'Ocorreu um erro ao tentar criar a conta. Tente novamente mais tarde.');
       }
     } finally {
@@ -52,8 +53,8 @@ export const RegisterPage = () => {
 
   return (
     <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-surface-50 relative">
-      <Link 
-        to="/" 
+      <Link
+        to="/"
         className="absolute top-6 left-6 flex items-center gap-2 text-surface-400 hover:text-white transition-colors p-2 rounded-lg hover:bg-surface-100"
       >
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -61,7 +62,7 @@ export const RegisterPage = () => {
         </svg>
         <span className="text-sm font-medium">Voltar para Início</span>
       </Link>
-      
+
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
           <div className="w-16 h-16 bg-primary-600 rounded-2xl flex items-center justify-center transform rotate-12 shadow-xl shadow-primary-500/20">
@@ -84,7 +85,7 @@ export const RegisterPage = () => {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-surface-100 py-8 px-4 shadow-2xl sm:rounded-2xl sm:px-10 border border-surface-200">
           <form className="space-y-6" onSubmit={handleRegister}>
-            
+
             {errorMessage && (
               <div className="bg-red-500/10 border border-red-500/30 text-red-500 px-4 py-3 rounded-xl text-sm flex items-center gap-3 animate-fade-in shadow-inner">
                 <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">

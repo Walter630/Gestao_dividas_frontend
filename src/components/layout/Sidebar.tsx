@@ -172,9 +172,25 @@ export const Sidebar: React.FC = () => {
           })}
         </nav>
 
-        {/* Footer - Install Button */}
+        {/* Footer - Copyright e Install */}
         <div className="p-4 border-t border-dark-300/30">
           <InstallButton />
+          
+          <div className="mt-6 flex flex-col gap-4">
+            <div className="bg-primary-500/10 border border-primary-500/20 p-3 rounded-xl text-center">
+              <p className="text-xs text-primary-400 font-medium mb-1">Possui alguma dúvida?</p>
+              <a href="mailto:suporte@seusistema.com" className="text-sm font-bold text-white hover:text-primary-300 transition-colors">
+                Entre em contato
+              </a>
+            </div>
+            
+            <div className="text-center">
+              <p className="text-[10px] text-gray-500 font-medium">
+                &copy; {new Date().getFullYear()} Sistema de Gestão.
+                <br />Todos os direitos autorais reservados.
+              </p>
+            </div>
+          </div>
         </div>
       </aside>
     </>

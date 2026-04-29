@@ -1,5 +1,6 @@
 import { addMonths, setDate, parseISO, format, isBefore } from 'date-fns';
 import { Parcela, StatusParcela } from '../db/types';
+import { parseJavaDate } from './dateUtils';
 
 /**
  * Calcula as parcelas de uma compra baseada no fechamento do cartão.
@@ -11,20 +12,21 @@ import { Parcela, StatusParcela } from '../db/types';
 export function calcularParcelas(
   valorTotal: number,
   quantidadeParcelas: number,
-  dataCompraStr: string,
+  dataCompraStr: any,
   diaFechamento: number,
   diaVencimento: number
 ): Omit<Parcela, 'compraId'>[] {
-  const dataCompra = parseISO(dataCompraStr);
+  const parsedStr = parseJavaDate(dataCompraStr);
+  const dataCompra = parsedStr ? parseISO(parsedStr) : new Date();
   const parcelas: Omit<Parcela, 'compraId'>[] = [];
   const valorParcela = Number((valorTotal / quantidadeParcelas).toFixed(2));
-  
+
   // Ajuste para a última parcela não perder centavos por arredondamento
   const DiferencaArredondamento = Number((valorTotal - (valorParcela * quantidadeParcelas)).toFixed(2));
 
   // Determinar o mês da primeira parcela
   let dataPrimeiroVencimento = setDate(dataCompra, diaVencimento);
-  
+
   // Se a compra foi feita no dia de fechamento ou depois, joga para o próximo mês
   if (dataCompra.getDate() >= diaFechamento) {
     dataPrimeiroVencimento = addMonths(dataPrimeiroVencimento, 1);
@@ -32,7 +34,7 @@ export function calcularParcelas(
 
   for (let i = 1; i <= quantidadeParcelas; i++) {
     const dataVenc = addMonths(dataPrimeiroVencimento, i - 1);
-    
+
     parcelas.push({
       numeroParcela: i,
       valor: i === quantidadeParcelas ? Number((valorParcela + DiferencaArredondamento).toFixed(2)) : valorParcela,

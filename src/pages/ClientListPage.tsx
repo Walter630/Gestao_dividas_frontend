@@ -56,9 +56,11 @@ export const ClientListPage: React.FC = () => {
         </div>
 
         {!clientes ? (
+
           <div className="flex justify-center py-20">
             <div className="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full" />
           </div>
+
         ) : filtered?.length === 0 ? (
           <div className="bg-dark-600 rounded-2xl p-10 text-center border border-dark-300/50">
             <p className="text-gray-400 mb-4">Nenhum cliente encontrado.</p>

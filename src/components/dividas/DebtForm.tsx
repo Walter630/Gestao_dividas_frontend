@@ -107,7 +107,9 @@ export const DebtForm: React.FC<DebtFormProps> = ({
       devedorEmail: isQuickAdd ? (data.clienteEmail || '') : (selectedClient?.email || ''),
       valor: parseFloat(data.valor) || 0,
       descricao: data.descricao,
-      dataVencimento: new Date(data.dataVencimento).toISOString(),
+      dataVencimento: data.dataVencimento.includes('T')
+        ? data.dataVencimento
+        : `${data.dataVencimento}T00:00:00`,
       status: data.status as StatusDivida,
       taxType: data.taxType as TaxType,
       taxValue: parseFloat(data.taxValue) || 0,
@@ -184,7 +186,7 @@ export const DebtForm: React.FC<DebtFormProps> = ({
         />
         <Input
           label="Data de Vencimento"
-          type="datetime-local"
+          type="date"
           error={errors.dataVencimento?.message}
           required
           {...register('dataVencimento', { required: 'Data de vencimento é obrigatória' })}

@@ -7,6 +7,8 @@ function mapBackendToCliente(c: any): Cliente {
   return {
     ...c,
     nome: c.nome ?? c.name, // backend retorna 'name', front usa 'nome'
+    documento: c.cpf || c.documento || '', // mantemos compatibilidade local
+    cpf: c.cpf || ''
   };
 }
 
@@ -15,10 +17,15 @@ export function useAllClientes() {
 
   const fetchClientes = useCallback(async () => {
     try {
-      const response = await api.get('/client');
+      console.log('Tentando buscar clientes em: /client/');
+      const response = await api.get('/client/');
+      console.log('Sucesso! Dados recebidos:', response.data);
       setClientes((response.data as any[]).map(mapBackendToCliente));
-    } catch (error) {
-      console.error('Failed to fetch clientes', error);
+    } catch (error: any) {
+      console.error('ERRO NA REQUISIÇÃO DE CLIENTES:');
+      console.error('Status:', error.response?.status);
+      console.error('URL solicitada:', error.config?.url);
+      console.error('Dados de erro do backend:', error.response?.data);
       setClientes([]);
     }
   }, []);
@@ -39,9 +46,8 @@ export function useClienteById(id?: string) {
     if (!id) return;
     try {
       // Como não foi listada rota de get by id por Client, a gente pega da listagem
-      const response = await api.get('/client');
-      const found = (response.data as any[]).map(mapBackendToCliente).find((c: Cliente) => c.id === id);
-      setCliente(found);
+      const response = await api.get(`/client/${id}`);
+      setCliente(mapBackendToCliente(response.data));
     } catch (error) {
       console.error('Failed to fetch cliente by id', error);
       setCliente(undefined);
@@ -60,7 +66,7 @@ export async function createCliente(data: Omit<Cliente, 'id' | 'createAt'>) {
   const payload = {
     name: data.nome,
     email: data.email || '',
-    cpf: data.cpf || data.documento || '',  // documento é o nome do campo no front
+    cpf: data.cpf || '',  // documento é o nome do campo no front
     telefone: data.telefone || ''
   };
 
@@ -72,7 +78,8 @@ export async function createCliente(data: Omit<Cliente, 'id' | 'createAt'>) {
 
 export async function updateCliente(id: string, data: Partial<Omit<Cliente, 'id' | 'createAt'>>) {
   // O backend não possui rota PUT/PATCH /client/{id} por hora. 
-  console.warn('Backend não tem rota updateCliente. Pulando.');
+  const response = await api.patch(`/client/${id}`)
+  return response.data?.id || response.data?.name
 }
 
 export async function deleteCliente(id: string) {

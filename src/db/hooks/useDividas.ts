@@ -60,7 +60,7 @@ export function useAllDividas() {
 
   const fetchDividas = useCallback(async () => {
     try {
-      const response = await api.get('/debts');
+      const response = await api.get('/debts/');
 
       const backendArray = await Promise.all(response.data.map(async (d: any) => {
         const valorOriginal = Number(d.valorOriginal || d.valor || 0);
@@ -148,7 +148,7 @@ export function useDividaById(id: string | undefined) {
   const fetchDivida = useCallback(async () => {
     if (!id) return;
     try {
-      const response = await api.get(`/debts/${id}`);
+      const response = await api.get(`/debts/${id}/`);
       const d = response.data;
 
       const valorOriginal = Number(d.valorOriginal || d.valor || 0);
@@ -261,7 +261,7 @@ export async function createDivida(input: DividaInput): Promise<string> {
     numeroParcelas: input.numeroParcelas || 1
   };
 
-  const res = await api.post('/debts', body);
+  const res = await api.post('/debts/', body);
   return res.data?.id || 'nova_divida';
 }
 
@@ -272,7 +272,7 @@ export async function updateDivida(id: string, updates: Partial<DividaInput>): P
 }
 
 export async function deleteDivida(id: string): Promise<void> {
-  await api.delete(`/debts/${id}`);
+  await api.delete(`/debts/${id}/`);
 }
 
 export async function updateStatus(id: string, novoStatus?: StatusDivida) {
@@ -360,7 +360,7 @@ export async function addPagamento(
 }
 
 export async function getDividaStats() {
-  const res = await api.get('/debts');
+  const res = await api.get('/debts/');
   const all: any[] = res.data || [];
 
   // Stats iniciais zerados

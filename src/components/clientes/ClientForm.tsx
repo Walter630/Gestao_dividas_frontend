@@ -22,7 +22,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       nome: defaultValues?.nome || '',
       email: defaultValues?.email || '',
       telefone: defaultValues?.telefone || '',
-      documento: defaultValues?.documento || '',
+      cpf: defaultValues?.cpf || '',
     },
   });
 
@@ -52,8 +52,8 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       <Input
         label="CPF / CNPJ"
         placeholder="Ex: 123.456.789-00"
-        error={errors.documento?.message}
-        {...register('documento')}
+        error={errors.cpf?.message}
+        {...register('cpf')}
       />
 
       <div className="pt-4 border-t border-dark-400">

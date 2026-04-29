@@ -15,6 +15,7 @@ import { TAX_TYPE_LABELS, PAYMENT_MODE_LABELS, StatusDivida, PaymentMode } from 
 import type { PagamentoTipo } from '../db/types';
 import { differenceInDays } from 'date-fns';
 import { toast } from 'sonner';
+import { fetchNegotiationSuggestion } from '../services/negotiateService';
 
 export const DebtDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -23,6 +24,8 @@ export const DebtDetailPage: React.FC = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [suggestionText, setSuggestionText] = useState<string | null>(null);
+  const [suggestionLoading, setSuggestionLoading] = useState(false);
   const navigate = useNavigate();
   const divida = useDividaById(id);
   const { breakdown: backendBreakdown, loading: breakdownLoading, refresh: refreshBreakdown } = useDividaBreakdown(id);
@@ -74,6 +77,20 @@ export const DebtDetailPage: React.FC = () => {
       toast.error('Erro ao registrar o pagamento');
     } finally {
       setPaymentLoading(false);
+    }
+  };
+
+  const handleFetchSuggestion = async () => {
+    if (!id) return;
+    setSuggestionLoading(true);
+    setSuggestionText(null);
+    try {
+      const suggestion = await fetchNegotiationSuggestion(id);
+      setSuggestionText(suggestion);
+    } catch {
+      toast.error('Erro ao buscar sugestão de acordo. Verifique se o backend está disponível.');
+    } finally {
+      setSuggestionLoading(false);
     }
   };
 
@@ -232,6 +249,64 @@ export const DebtDetailPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* AI Negotiation Suggestion */}
+        {divida.status !== StatusDivida.PAGO && divida.status !== StatusDivida.CANCELADA && (
+          <Card className="border-primary-500/30 bg-primary-500/5 shadow-lg shadow-primary-500/5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl animate-bounce-subtle">✨</span>
+                <div>
+                  <h3 className="text-white text-sm font-bold uppercase tracking-wider">Sugestão de Acordo por IA</h3>
+                  <p className="text-gray-400 text-xs">Deixe a IA analisar os dados e propor a melhor estratégia</p>
+                </div>
+              </div>
+              <Button
+                variant="primary"
+                size="md"
+                className="shadow-lg shadow-primary-500/20"
+                loading={suggestionLoading}
+                onClick={handleFetchSuggestion}
+              >
+                {suggestionLoading ? 'Analisando...' : suggestionText ? '🔄 Gerar Nova' : '✨ Gerar Agora'}
+              </Button>
+            </div>
+
+            {!suggestionText && !suggestionLoading && (
+              <p className="text-gray-400 text-sm italic">
+                A IA levará em conta o valor original, juros acumulados e histórico de pagamentos para sugerir uma proposta justa.
+              </p>
+            )}
+
+            {suggestionLoading && (
+              <div className="space-y-2 py-2 animate-pulse">
+                <div className="h-3 bg-dark-400 rounded w-full" />
+                <div className="h-3 bg-dark-400 rounded w-5/6" />
+                <div className="h-3 bg-dark-400 rounded w-4/6" />
+              </div>
+            )}
+
+            {suggestionText && !suggestionLoading && (
+              <div className="mt-1 p-4 bg-dark-600/50 border border-primary-500/20 rounded-xl relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-2 opacity-20 group-hover:opacity-100 transition-opacity">
+                   <span className="text-xs text-primary-400 font-mono select-none">AI PROPOSAL v1.0</span>
+                </div>
+                <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap">{suggestionText}</p>
+                <div className="mt-4 pt-3 border-t border-dark-300/30 flex items-center justify-between">
+                  <p className="text-gray-500 text-[10px] uppercase">
+                    ⚠ Revise antes de apresentar ao cliente
+                  </p>
+                  <Button variant="ghost" size="sm" onClick={() => {
+                    navigator.clipboard.writeText(suggestionText || '');
+                    toast.success('Copiado para a área de transferência');
+                  }}>
+                    Copiar
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Card>
+        )}
 
         {/* Breakdown Card (Valores detalhados) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
